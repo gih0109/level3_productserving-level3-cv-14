@@ -1,0 +1,14 @@
+command:
+  - python
+  - ${program}
+  - /opt/ml/input/code/mmdetection/exp/exp/cascade_rcnn_pafpn_convnext-xl_last.py
+method: bayes
+metric:
+  goal: minimize
+  name: Step
+parameters:
+  optimizer.lr:
+    distribution: uniform
+    max: 0.0001
+    min: 0.00001
+program: tools/train.py
