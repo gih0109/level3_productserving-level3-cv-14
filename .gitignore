@@ -104,8 +104,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-data/
-data
 .vscode
 .idea
 .DS_Store
@@ -126,4 +124,3 @@ work_dirs/
 
 .DS_Store
 wandb
-data
