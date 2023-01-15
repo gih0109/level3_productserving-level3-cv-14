@@ -1,2 +1,6 @@
+[core]
+    remote = ass-db
 ['remote "ass-db"']
     url = gdrive://1uXW6VD8N0Ked0Tr7u8FpoKNuNeOTjXKr
+    gdrive_client_id = 469002680803-o00sbh40rq3koqqlqbms5n5nv5s3mr5p.apps.googleusercontent.com
+    gdrive_client_secret = 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
