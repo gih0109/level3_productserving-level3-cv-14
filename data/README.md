@@ -26,4 +26,4 @@
 
 # data load
 
-`dvc pull {train_v1.dvc} {test_v1.dvc} {train_v1.json.dvc} {train_v1.json.dvc}`
+`dvc pull {train_v1.dvc} {test_v1.dvc} {train_v1.json.dvc} {test_v1.json.dvc}`
