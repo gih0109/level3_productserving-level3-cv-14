@@ -104,8 +104,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-data/
-data
 .vscode
 .idea
 .DS_Store
@@ -133,5 +131,3 @@ mmdeploy-0.12.0-linux-x86_64-onnxruntime1.8.1.tar.gz
 
 .DS_Store
 wandb
-data
-
