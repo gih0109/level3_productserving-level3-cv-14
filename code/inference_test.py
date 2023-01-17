@@ -1,7 +1,10 @@
 import argparse
 
 import cv2
+import numpy as np
 from mmdeploy_python import Detector
+from pycocotools.coco import COCO
+from inference_function import *
 
 
 def parse_args():
@@ -13,12 +16,6 @@ def parse_args():
         help="path of mmdeploy SDK model dumped by model converter",
     )
     parser.add_argument(
-        "--image",
-        dest="image_path",
-        default="/opt/ml/input/data/images/all/0001.jpg",
-        help="path of an image",
-    )
-    parser.add_argument(
         "--device",
         dest="device_name",
         default="cpu",
@@ -28,31 +25,32 @@ def parse_args():
     return args
 
 
+# input : model_img(path list(str) 1.jpg~end.jpg), exam_info(str) : ex 2012_9_a
+# 이미지 정보 가져오기 ... 1
+# 디텍션 수행 ... 2
+# 1~2 비교하여 정답 만들기 (죄측하단 기준으로 confi 가장 높은애 )
+# output : dict{q(str) : a(str)}
+
+
 def main():
     args = parse_args()
-
-    img = cv2.imread(args.image_path)
+    ###################### 수정 필요한 초기값 ############################
+    coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
+    img_folder_path = "/opt/ml/input/data/images"
+    imgs_path = ["1.jpg", "2.jpg", "3.jpg", "4.jpg"]
+    exam_info = "2023_f_n_0"
     detector = Detector(
         model_path=args.model_path, device_name=args.device_name, device_id=0
     )
-    bboxes, labels, masks = detector(img)
-
-    indices = [i for i in range(len(bboxes))]
-    for index, bbox, label_id in zip(indices, bboxes, labels):
-        [left, top, right, bottom], score = bbox[0:4].astype(int), bbox[4]
-        if score < 0.3:
-            continue
-
-        cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0))
-
-        if masks[index].size:
-            mask = masks[index]
-            blue, green, red = cv2.split(img)
-            mask_img = blue[top : top + mask.shape[0], left : left + mask.shape[1]]
-            cv2.bitwise_or(mask, mask_img, mask_img)
-            img = cv2.merge([blue, green, red])
-
-    cv2.imwrite("output_detection.png", img)
+    ##################################################################
+    model_inference = Inference(
+        img_folder_path,
+        imgs_path,
+        exam_info,
+        coco,
+        detector,
+    )
+    question_answer = model_inference.make_question_answer()
 
 
 if __name__ == "__main__":
