@@ -1,6 +1,6 @@
 optimizer = dict(
     type="AdamW",
-    lr=0.00005,
+    lr=0.0001,
     betas=(0.9, 0.999),
     weight_decay=0.05,
     paramwise_cfg=dict(
@@ -12,5 +12,5 @@ optimizer = dict(
     ),
 )
 optimizer_config = dict(grad_clip=None)
-lr_config = dict(policy="poly", power=0.9, min_lr=1e-6, by_epoch=False)
+lr_config = dict(policy="poly", power=0.9, min_lr=1e-5, by_epoch=False)
 runner = dict(type="EpochBasedRunner", max_epochs=100)
