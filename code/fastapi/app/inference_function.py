@@ -44,6 +44,39 @@ class MMdeployInference:
 
         return anns_dict
 
+    def load_anns_q(self, exam_info, img_path, coco):
+        """
+        시험의 정보와 이미지를 받아 그것에 대응되는 사전에 annotation된 questions을 반환
+
+        Args:
+            exam_info (str): 체첨하려는 시험의 정보
+            img_path (str): 쪽수가 적혀있는 img의 경로, ex) 3.jpg : 3쪽의 이미지
+            coco : 사전에 제작된 annotation기반 coco format 데이터
+            annotation box 정보 : x,y,w,h
+
+        Returns:
+            anns_dict (dict): 문제에 대응하는 정답 박스의 위치 반환
+            key : category_id
+            value : question box의 정보 : left,top,right,bottom
+        """
+        img_info = exam_info[int(img_path.split(".")[0]) - 1]
+        ann_ids = coco.getAnnIds(imgIds=img_info["id"])
+        anns = coco.loadAnns(ann_ids)
+        questions = [ann for ann in anns if ann["category_id"] > 6]
+        answers = [ann for ann in anns if ann["category_id"] <= 6]
+
+        # 추후에 중복되는 연산 제거하는 코드로 수정하기!!
+        anns_dict = {}
+        for q in questions:
+            q_ = self.xywh2ltrb(q["bbox"])
+            for a in answers:
+                a_ = self.xywh2ltrb(a["bbox"])
+                if self.compute_iou(q_, a_) > 0:
+                    anns_dict[q["category_id"]] = q_
+                    break
+
+        return anns_dict
+
     def load_exam_info(self, exam_info, coco):
         """
         img info를 불러오는 함수

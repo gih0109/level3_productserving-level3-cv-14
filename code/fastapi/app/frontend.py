@@ -7,6 +7,10 @@ import numpy as np  # image를 다룰때, PIL이미지로 변환할때 등 사�
 
 import streamlit as st  # frontend로 사용합니다.
 from inference_test import make_qadict  # 문제와 정답(모델의 예측)을 매칭할때 사용합니다. [건혁님]
+from inference_test import (
+    MMdeployInference,
+)  # o, x 패치를 붙이기 위한 문제의 annotation 정보를 가져오기 위해 사용합니다. [건혁님]
+from pycocotools.coco import COCO  # 바로위 모듈을 사용하기 위해 필요합니다.
 
 st.set_page_config(layout="wide")
 
@@ -14,7 +18,7 @@ st.set_page_config(layout="wide")
 # TODO: type 통일이 필요합니다.
 # answer의 경우, key, value가 모두 str 타입인데, user_solution은 int타입이라 불필요한 변환과정이 들어갑니다.
 # user_solution dictionary의 key, value도 모두 str로 통일해서 불필요한 타입 변환을 줄이면 좋을 것 같습니다.
-def score(user_solution: dict, answer: dict) -> dict:
+def score(user_solution: dict = None, answer: dict = None) -> dict:
     user_solution = {f"{k}": f"{v}" for k, v in user_solution.items()}
     result = {}
     # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
@@ -125,8 +129,68 @@ def main():
 
         # 채점하는 모듈입니다. TODO는 위에 적어뒀습니다.
         scoring_result = score(user_solution=user_solution, answer=answer)
-
         st.write(scoring_result)
+        # 채점된 이미지를 만들기 위해 o, x 이미지를 불러오는 부분입니다.
+        # TODO: 위의 input이미지의 resize 부분과 함께 고려해야 할 사항입니다.
+        o_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_img/correct.png")
+        x_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_img/wrong.png")
+        o_width, o_height = o_image.size
+        x_width, x_height = x_image.size
+
+        # TODO: 코드 리팩터링이 필요합니다. (지저분합니다.)
+        # 채점한 이미지에 정답을 붙이는 과정입니다.
+        coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
+        img_folder_path = "/opt/ml/input/code/fastapi/app/tmp"
+        from mmdet.apis import init_detector
+
+        from mmdet.apis import init_detector
+
+        detector = init_detector(
+            "/opt/ml/input/code/fastapi/app/model/cascade_rcnn_pafpn_convnext-xl_last.py",
+            "/opt/ml/input/code/fastapi/app/model/best_bbox_mAP_epoch_15.pth",
+            device="cuda:0",
+        )
+        Inference = MMdeployInference(
+            img_folder_path,
+            imgs_path,
+            exam_info,
+            coco,
+            detector,
+        )
+        exam_info = Inference.load_exam_info(exam_info, coco)
+
+        # TODO: 현재 paste 좌표가 좌측 하단으로 잡혀있음 (좌측 상단으로 바꿔야함. annotation 정보 확인 필요)
+        for img in imgs_path:
+            Inference.load_anns(exam_info, img, coco)
+            background = Image.open(
+                f"/opt/ml/input/code/fastapi/app/tmp/{img}"
+            ).convert(
+                "RGBA"
+            )  # 배경 이미지 생성
+            question_ann = Inference.load_anns_q(
+                exam_info, img, coco
+            )  # 이미지에 대한 question annotation 정보 획득
+            for cat_id, bbox in question_ann.items():
+                question = str(cat_id - 6)  # 문제 번호: 1 ~ 30
+                if scoring_result[question] == "O":
+                    background.paste(
+                        o_image,
+                        (
+                            int(bbox[0] - o_width / 2),
+                            int(bbox[3] - o_height / 2),
+                        ),
+                        o_image,
+                    )
+                else:
+                    background.paste(
+                        x_image,
+                        (
+                            int(bbox[0] - x_width / 2),
+                            int(bbox[3] - x_height / 2),
+                        ),
+                        x_image,
+                    )
+            st.image(np.array(background))
 
 
 main()
