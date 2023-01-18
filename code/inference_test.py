@@ -74,4 +74,5 @@ if __name__ == "__main__":
         img_folder_path="/opt/ml/input/code",
         imgs_path=["1.jpg", "2.jpg", "3.jpg", "4.jpg"],
         exam_info="2023_f_n_0",
+        is_save=True,
     )

@@ -87,7 +87,7 @@ class MMdeployInference:
         iou = intersection / union
         return iou
 
-    def get_predict(self, img, detector, box_threshold=0.0):
+    def get_predict(self, img, detector, box_threshold=0.3):
         """_summary_
 
         Args:
@@ -101,10 +101,11 @@ class MMdeployInference:
         """
         bboxes, labels, _ = detector(img)
         predict = [
-            np.append(bbox[:4], label).astype(int)
+            np.append(bbox, label)
             for bbox, label in zip(bboxes, labels)
             if (bbox[4] > box_threshold)
         ]
+        predict = sorted(predict, key=lambda x: x[4], reverse=True)
         return predict
 
     def xywh2ltrb(self, bbox):
@@ -117,15 +118,15 @@ class MMdeployInference:
         """
         return bbox[0], bbox[1] + bbox[3], bbox[0] + bbox[2], bbox[1]
 
-    def ltrb2xywh(self, bbox):
+    def xyxy2ltrb(self, bbox):
         """
         Args:
-            bbox: (left,top,right,bottom)
+            bbox: (xmin,ymin,xmax,ymax)
 
         Returns:
-            bbox: (x,y,w,h)
+            bbox: (left,top,right,bottom)
         """
-        return bbox[0], bbox[3], bbox[2] - bbox[0], bbox[1] - bbox[3]
+        return bbox[0], bbox[3], bbox[2], bbox[1]
 
     def make_qa(self, predict, anns):
         """문제에 대응하는 최적의 answer box 찾기
@@ -141,7 +142,7 @@ class MMdeployInference:
         question_answer = {}
         for q, bbox in anns.items():
             question_answer[q - 6] = max(
-                predict, key=lambda x: self.compute_iou(x[:4], bbox)
+                predict, key=lambda x: self.compute_iou(x[:4].astype(int), bbox)
             )
         return question_answer
 
@@ -150,10 +151,10 @@ class MMdeployInference:
         predicted img 저장하는 함수!
         """
         for q, bbox in qa_info.items():
-            left, top, right, bottom = bbox[:4]
+            left, top, right, bottom = bbox[:4].astype(int)
             cv2.putText(
                 img,
-                str(bbox[-1]),
+                str(int(bbox[-1])),
                 (left, top - 10),
                 cv2.FONT_HERSHEY_COMPLEX,
                 0.9,
@@ -184,7 +185,7 @@ class MMdetectionInference(MMdeployInference):
         super().__init__(img_folder_path, imgs_path, exam_info, coco, detector)
         self.inference_detector = inference_detector
 
-    def get_predict(self, img, detector, box_threshold=0.0):
+    def get_predict(self, img, detector, box_threshold=0.3):
         """_summary_
 
         Args:
@@ -200,10 +201,11 @@ class MMdetectionInference(MMdeployInference):
         predict = []
         for label, bboxes in enumerate(inferece):
             predict += [
-                np.append(bbox[:4], label).astype(int)
+                np.append(self.xyxy2ltrb(bbox[:4]), [bbox[4], label])
                 for bbox in bboxes
                 if (bbox[4] > box_threshold)
             ]
+        predict = sorted(predict, key=lambda x: x[4], reverse=True)
         return predict
 
     def make_question_answer(self, is_save=False):
@@ -216,5 +218,8 @@ class MMdetectionInference(MMdeployInference):
             answer_bbox.update(qa_info)
             if is_save:
                 self.save_predict(cv2.imread(img), img_path, qa_info)
-        question_answer = {q: bbox[-1] for q, bbox in sorted(answer_bbox.items())}
+        question_answer = {
+            q: (int(bbox[-1]), f"{bbox[-2]}:.04f")
+            for q, bbox in sorted(answer_bbox.items())
+        }
         return question_answer
