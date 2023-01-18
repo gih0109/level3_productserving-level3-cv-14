@@ -3,7 +3,7 @@ import cv2
 import os
 
 
-class Inference:
+class MMdeployInference:
     def __init__(self, img_folder_path, imgs_path, exam_info, coco, detector):
         self.img_folder_path = img_folder_path
         self.imgs_path = imgs_path
@@ -19,11 +19,12 @@ class Inference:
             exam_info (str): 체첨하려는 시험의 정보
             img_path (str): 쪽수가 적혀있는 img의 경로, ex) 3.jpg : 3쪽의 이미지
             coco : 사전에 제작된 annotation기반 coco format 데이터
+            annotation box 정보 : x,y,w,h
 
         Returns:
             anns_dict (dict): 문제에 대응하는 정답 박스의 위치 반환
             key : category_id
-            value : answer box의 정보
+            value : answer box의 정보 : left,top,right,bottom
         """
         img_info = exam_info[int(img_path.split(".")[0]) - 1]
         ann_ids = coco.getAnnIds(imgIds=img_info["id"])
@@ -36,8 +37,9 @@ class Inference:
         for q in questions:
             q_ = self.xywh2ltrb(q["bbox"])
             for a in answers:
-                if self.compute_iou(q_, self.xywh2ltrb(a["bbox"])) > 0:
-                    anns_dict[q["category_id"]] = a["bbox"]
+                a_ = self.xywh2ltrb(a["bbox"])
+                if self.compute_iou(q_, a_) > 0:
+                    anns_dict[q["category_id"]] = a_
                     break
 
         return anns_dict
@@ -85,7 +87,7 @@ class Inference:
         iou = intersection / union
         return iou
 
-    def get_predict(self, img, detector, box_threshold=0.3):
+    def get_predict(self, img, detector, box_threshold=0.0):
         """_summary_
 
         Args:
@@ -95,13 +97,13 @@ class Inference:
 
         Returns:
             List: [np.array(left,top,right,bottom,class_id) .... ]
-            list안의 값은 np.array 형식으로 x,y,w,h의 박스정보와 classid 값이 int type으로 정의됨
+            list안의 값은 np.array 형식으로 박스정보와 label 값이 int type으로 정의됨
         """
         bboxes, labels, _ = detector(img)
         predict = [
             np.append(bbox[:4], label).astype(int)
             for bbox, label in zip(bboxes, labels)
-            if (bbox[4] > box_threshold and label > 0)
+            if (bbox[4] > box_threshold)
         ]
         return predict
 
@@ -126,19 +128,29 @@ class Inference:
         return bbox[0], bbox[3], bbox[2] - bbox[0], bbox[1] - bbox[3]
 
     def make_qa(self, predict, anns):
+        """문제에 대응하는 최적의 answer box 찾기
+           최적의 answer box 기준은 사전의 annotation결과와 iou가 가장 높은 box
+
+        Args:
+            predict (List): [[box_info, label] ....] box_info = left,top,right,bottom
+            anns (dict): key : 문제 categori id, value: bbox left,top,right,bottom
+
+        Returns:
+            question_answer (dict):  key : 문제번호, value : [boxinfo, categori_id]
+        """
         question_answer = {}
         for q, bbox in anns.items():
             question_answer[q - 6] = max(
-                predict,
-                key=lambda x: self.compute_iou(
-                    self.xywh2ltrb(x[:4]), self.xywh2ltrb(bbox)
-                ),
+                predict, key=lambda x: self.compute_iou(x[:4], bbox)
             )
         return question_answer
 
-    def save_predict(self, img, qa_info):
+    def save_predict(self, img, img_path, qa_info):
+        """
+        predicted img 저장하는 함수!
+        """
         for q, bbox in qa_info.items():
-            left, top, right, bottom = self.xywh2ltrb(bbox[:4])
+            left, top, right, bottom = bbox[:4]
             cv2.putText(
                 img,
                 str(bbox[-1]),
@@ -149,7 +161,7 @@ class Inference:
                 3,
             )
             cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 3)
-            cv2.imwrite("output_detection.png", img)
+            cv2.imwrite(f"{img_path}_predict.jpg", img)
 
     def make_question_answer(self, is_save=False):
         answer_bbox = {}
@@ -160,6 +172,49 @@ class Inference:
             qa_info = self.make_qa(predict, anns)
             answer_bbox.update(qa_info)
             if is_save:
-                self.save_predict(img, qa_info)
+                self.save_predict(img, img_path, qa_info)
+        question_answer = {q: bbox[-1] for q, bbox in sorted(answer_bbox.items())}
+        return question_answer
+
+
+class MMdetectionInference(MMdeployInference):
+    def __init__(self, img_folder_path, imgs_path, exam_info, coco, detector):
+        from mmdet.apis import inference_detector
+
+        super().__init__(img_folder_path, imgs_path, exam_info, coco, detector)
+        self.inference_detector = inference_detector
+
+    def get_predict(self, img, detector, box_threshold=0.0):
+        """_summary_
+
+        Args:
+            img: img 파일의 경로
+            detector: 사전에 제작된 mmdetection 모델
+            box_threshold (float, optional): detector로 예측된 box들의 최소 임계값
+
+        Returns:
+            List: [np.array(left,top,right,bottom,class_id) .... ]
+            list안의 값은 np.array 형식으로 박스정보와 label 값이 int type으로 정의됨
+        """
+        inferece = self.inference_detector(self.detector, img)
+        predict = []
+        for label, bboxes in enumerate(inferece):
+            predict += [
+                np.append(bbox[:4], label).astype(int)
+                for bbox in bboxes
+                if (bbox[4] > box_threshold)
+            ]
+        return predict
+
+    def make_question_answer(self, is_save=False):
+        answer_bbox = {}
+        for img_path in self.imgs_path:
+            img = os.path.join(self.img_folder_path, img_path)
+            predict = self.get_predict(img, self.detector)
+            anns = self.load_anns(self.exam_info, img_path, self.coco)
+            qa_info = self.make_qa(predict, anns)
+            answer_bbox.update(qa_info)
+            if is_save:
+                self.save_predict(cv2.imread(img), img_path, qa_info)
         question_answer = {q: bbox[-1] for q, bbox in sorted(answer_bbox.items())}
         return question_answer
