@@ -6,30 +6,10 @@ import albumentations as A  # image reshape을 위해 사용합니다.
 import numpy as np  # image를 다룰때, PIL이미지로 변환할때 등 사용합니다.
 
 import streamlit as st  # frontend로 사용합니다.
-from inference_test import make_qadict  # 문제와 정답(모델의 예측)을 매칭할때 사용합니다. [건혁님]
-from inference_test import (
-    MMdeployInference,
-)  # o, x 패치를 붙이기 위한 문제의 annotation 정보를 가져오기 위해 사용합니다. [건혁님]
+from inference import *  # 문제와 정답(모델의 예측)을 매칭할때 사용합니다. [건혁님]
 from pycocotools.coco import COCO  # 바로위 모듈을 사용하기 위해 필요합니다.
 
 st.set_page_config(layout="wide")
-
-# 채점하는 함수
-# TODO: type 통일이 필요합니다.
-# answer의 경우, key, value가 모두 str 타입인데, user_solution은 int타입이라 불필요한 변환과정이 들어갑니다.
-# user_solution dictionary의 key, value도 모두 str로 통일해서 불필요한 타입 변환을 줄이면 좋을 것 같습니다.
-def score(user_solution: dict = None, answer: dict = None) -> dict:
-    user_solution = {f"{k}": f"{v}" for k, v in user_solution.items()}
-    result = {}
-    # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
-    # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
-    # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
-    for question in map(str, range(1, 22)):
-        if user_solution[question] == answer[question]:
-            result[question] = "O"
-        else:
-            result[question] = "X"
-    return result
 
 
 def main():
@@ -38,11 +18,12 @@ def main():
 
     # 스트림릿의 선택 창으로 채점할 문제의 종류를 선택하는 부분입니다.
     year = [str(y) for y in range(2013, 2024)]  # 2013학년도 ~ 2023학년도
-    year_choice = st.selectbox("채점을 원하시는 시험의 연도를 선택해 주세요", year)
+    default_ix = year.index("2021")
+    year_choice = st.selectbox("채점을 원하시는 시험의 연도를 선택해 주세요", year, index=default_ix)
 
     test = ["6월", "9월", "수능"]  # 6월, 9월 모의고사, 수능입니다.
     test_map = {"6월": "6", "9월": "9", "수능": "f"}  # 데이터에 사용된 문자(6, 9, f)로 변환하기 위한 맵입니다.
-    test_choice = st.selectbox("채점을 원하시는 시험을 선택해 주세요", test)
+    test_choice = st.selectbox("채점을 원하시는 시험을 선택해 주세요", test, index=2)
 
     type_ = (
         ["구분없음"] if int(year_choice) >= 2022 else ["가(A)형", "나(B)형"]
@@ -115,17 +96,18 @@ def main():
         # 현재는 건혁님이 코드를 작성해 주셨습니다.
         # GCP 배포를 고려한다면 추후에 mmdeploy의 onnx 모델(cpu)을 사용하거나,
         # 다른 서버에서 gpu를 사용한 예측만 수행해서 결과를 받아오는 방식으로 수정할 수 있습니다.
-        user_solution = make_qadict(
+        inference_model = make_inference_model(
             model_type="mmdetection",
             model_info=[
-                "/opt/ml/input/code/fastapi/app/model/cascade_rcnn_pafpn_convnext-xl_last.py",
-                "/opt/ml/input/code/fastapi/app/model/best_bbox_mAP_epoch_15.pth",
+                "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/faster_rcnn_r50_fpn_fp16_1x_coco.py",
+                "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/best_bbox_mAP_epoch_90.pth",
             ],
             coco_json_path="/opt/ml/input/data/annotations/train_v1-3.json",
             img_folder_path="/opt/ml/input/code/fastapi/app/tmp",
-            imgs_path=imgs_path,
+            imgs_path=imgs_path[:4],
             exam_info=exam_info,
         )
+        user_solution = inference_model.make_user_solution()
 
         # 채점하는 모듈입니다. TODO는 위에 적어뒀습니다.
         scoring_result = score(user_solution=user_solution, answer=answer)
@@ -137,38 +119,20 @@ def main():
         o_width, o_height = o_image.size
         x_width, x_height = x_image.size
 
-        # TODO: 코드 리팩터링이 필요합니다. (지저분합니다.)
-        # 채점한 이미지에 정답을 붙이는 과정입니다.
-        coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
-        img_folder_path = "/opt/ml/input/code/fastapi/app/tmp"
-        from mmdet.apis import init_detector
-
-        from mmdet.apis import init_detector
-
-        detector = init_detector(
-            "/opt/ml/input/code/fastapi/app/model/cascade_rcnn_pafpn_convnext-xl_last.py",
-            "/opt/ml/input/code/fastapi/app/model/best_bbox_mAP_epoch_15.pth",
-            device="cuda:0",
-        )
-        Inference = MMdeployInference(
-            img_folder_path,
-            imgs_path,
-            exam_info,
-            coco,
-            detector,
-        )
-        exam_info = Inference.load_exam_info(exam_info, coco)
+        exam_info = inference_model.exam_info
 
         # TODO: 현재 paste 좌표가 좌측 하단으로 잡혀있음 (좌측 상단으로 바꿔야함. annotation 정보 확인 필요)
-        for img in imgs_path:
-            Inference.load_anns(exam_info, img, coco)
+        for img in imgs_path[:4]:
+            inference_model.load_anns(
+                inference_model.exam_info, img, inference_model.coco
+            )
             background = Image.open(
                 f"/opt/ml/input/code/fastapi/app/tmp/{img}"
             ).convert(
                 "RGBA"
             )  # 배경 이미지 생성
-            question_ann = Inference.load_anns_q(
-                exam_info, img, coco
+            question_ann = inference_model.load_anns_q(
+                exam_info, img, inference_model.coco
             )  # 이미지에 대한 question annotation 정보 획득
             for cat_id, bbox in question_ann.items():
                 question = str(cat_id - 6)  # 문제 번호: 1 ~ 30
@@ -177,7 +141,7 @@ def main():
                         o_image,
                         (
                             int(bbox[0] - o_width / 2),
-                            int(bbox[3] - o_height / 2),
+                            int(bbox[1] - o_height / 2),
                         ),
                         o_image,
                     )
@@ -186,7 +150,7 @@ def main():
                         x_image,
                         (
                             int(bbox[0] - x_width / 2),
-                            int(bbox[3] - x_height / 2),
+                            int(bbox[1] - x_height / 2),
                         ),
                         x_image,
                     )

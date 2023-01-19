@@ -80,9 +80,7 @@ async def make_order(
     products = []
     for file in files:
         image_bytes = await file.read()
-        inference_result = predict_from_image_byte(
-            model=model, image_bytes=image_bytes, config=config
-        )
+        inference_result = predict_from_image_byte(model=model, image_bytes=image_bytes, config=config)
         product = InferenceImageProduct(result=inference_result)
         products.append(product)
 
