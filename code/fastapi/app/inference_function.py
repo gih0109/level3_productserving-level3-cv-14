@@ -267,7 +267,7 @@ def score(user_solution=None, answer=None):
     # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
     # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
     # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
-    for question in map(str, range(1, 13)):
+    for question in map(str, range(1, 13)):  # fix
         if user_solution[question] == answer[question]:
             result[question] = "O"
         else:
