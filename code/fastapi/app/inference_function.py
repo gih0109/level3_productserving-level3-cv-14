@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import cv2
 import os
 
@@ -152,9 +153,10 @@ class MMdeployInference:
     def make_qa(self, predict, anns):
         """문제에 대응하는 최적의 answer box 찾기
            최적의 answer box 기준은 사전의 annotation결과와 iou가 가장 높은 box
+           iou 값이 0.3 이상인 박스가 없는경우 예측을 못했다고 판단하고 결과로 (0,0,0,0,0,0)을 반환
 
         Args:
-            predict (List): [[box_info, label] ....] box_info = left,top,right,bottom
+            predict (List): [[box_info, confidence score,label] ....] box_info = left,top,right,bottom
             anns (dict): key : 문제 categori id, value: bbox left,top,right,bottom
 
         Returns:
@@ -162,9 +164,12 @@ class MMdeployInference:
         """
         question_answer = {}
         for q, bbox in anns.items():
-            question_answer[q - 6] = max(
-                predict, key=lambda x: self.compute_iou(x[:4].astype(int), bbox)
-            )
+            iou_list = [self.compute_iou(pred, bbox) for pred in predict]
+            max_iou = max(iou_list) if iou_list else 0
+            if max_iou < 0.3:
+                question_answer[q - 6] = np.array([0, 0, 0, 0, 0, 0])
+            else:
+                question_answer[q - 6] = predict[iou_list.index(max_iou)]
         return question_answer
 
     def save_predict(self, img, img_path, qa_info):
@@ -175,7 +180,7 @@ class MMdeployInference:
             left, top, right, bottom = bbox[:4].astype(int)
             cv2.putText(
                 img,
-                str(int(bbox[-1])),
+                f"{int(bbox[-1])}   {bbox[-2]:.4f}",
                 (left, top - 10),
                 cv2.FONT_HERSHEY_COMPLEX,
                 0.9,
@@ -229,23 +234,43 @@ class MMdetectionInference(MMdeployInference):
         predict = sorted(predict, key=lambda x: x[4], reverse=True)
         return predict
 
-    def make_user_solution(self, is_save=False):
+    def make_user_solution(self, is_save=False, log_save=False):
         """
         Args:
             is_save (bool): 예측한 결과의 사진을 저장할지 여부
+            log_save(bool): 이미지의 정답과 예측값 그 값에 대응하는 confidence csv 저장
 
         Returns:
             dict: key 문제번호, value : 예측한 체크박스의 번호
         """
-        answer_bbox = {}
+        answer_bbox, a_label = {}, []
         for img_path in self.imgs_path:
             img = os.path.join(self.img_folder_path, img_path)
             predict = self.get_predict(img, self.detector)
             anns = self.load_anns(self.exam_info, img_path, self.coco)
             qa_info = self.make_qa(predict, anns)
             answer_bbox.update(qa_info)
+
             if is_save:
                 self.save_predict(cv2.imread(img), img_path, qa_info)
+
+            if log_save:
+                img_info = self.exam_info[int(img_path.split(".")[0]) - 1]
+                ann_ids = self.coco.getAnnIds(imgIds=img_info["id"])
+                anns = self.coco.loadAnns(ann_ids)
+                a_label += [ann for ann in anns if ann["category_id"] <= 6]
+
+        if log_save:
+            a_b = sorted(answer_bbox.items())
+            pred_data = pd.DataFrame(
+                {
+                    "label": [a["category_id"] - 1 for a in a_label],
+                    "predict": [int(bbox[-1]) for q, bbox in a_b],
+                    "confidence": [bbox[-2] for q, bbox in a_b],
+                }
+            )
+            pred_data.to_csv("./predict_log.csv")
+
         user_solution = {q: int(bbox[-1]) for q, bbox in sorted(answer_bbox.items())}
         return user_solution
 
@@ -267,7 +292,7 @@ def score(user_solution=None, answer=None):
     # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
     # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
     # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
-    for question in map(str, range(1, 13)):
+    for question in map(str, range(1, 22)):
         if user_solution[question] == answer[question]:
             result[question] = "O"
         else:
