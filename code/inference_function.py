@@ -73,18 +73,18 @@ class MMdeployInference:
         Returns:
             iou(float): box1과 box2의 iou값 반환
         """
-        # Calculate intersection areas
         x1 = np.maximum(box1[0], box2[0])
-        y1 = np.maximum(box1[3], box2[3])
+        y1 = np.maximum(box1[1], box2[1])
         x2 = np.minimum(box1[2], box2[2])
-        y2 = np.minimum(box1[1], box2[1])
+        y2 = np.minimum(box1[3], box2[3])
 
-        box1_area = (box1[2] - box1[0]) * (box1[1] - box1[3])
-        box2_area = (box2[2] - box2[0]) * (box2[1] - box2[3])
+        box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+        box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
         intersection = np.maximum(x2 - x1, 0) * np.maximum(y2 - y1, 0)
         union = box1_area + box2_area - intersection
 
         iou = intersection / union
+        assert iou <= 1, "iou값이 1 초과"
         return iou
 
     def get_predict(self, img, detector, box_threshold=0.3):
@@ -110,23 +110,13 @@ class MMdeployInference:
 
     def xywh2ltrb(self, bbox):
         """
-        Args:
+        Args: (x,y)는 좌측 상단
             bbox: (x,y,w,h)
 
         Returns:
             bbox: (left,top,right,bottom)
         """
-        return bbox[0], bbox[1] + bbox[3], bbox[0] + bbox[2], bbox[1]
-
-    def xyxy2ltrb(self, bbox):
-        """
-        Args:
-            bbox: (xmin,ymin,xmax,ymax)
-
-        Returns:
-            bbox: (left,top,right,bottom)
-        """
-        return bbox[0], bbox[3], bbox[2], bbox[1]
+        return bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]
 
     def make_qa(self, predict, anns):
         """문제에 대응하는 최적의 answer box 찾기
@@ -150,7 +140,7 @@ class MMdeployInference:
         """
         predicted img 저장하는 함수!
         """
-        for q, bbox in qa_info.items():
+        for bbox in qa_info.values():
             left, top, right, bottom = bbox[:4].astype(int)
             cv2.putText(
                 img,
@@ -158,10 +148,10 @@ class MMdeployInference:
                 (left, top - 10),
                 cv2.FONT_HERSHEY_COMPLEX,
                 0.9,
-                (0, 255, 0),
+                (255, 0, 0),
                 3,
             )
-            cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 3)
+            cv2.rectangle(img, (left, top), (right, bottom), (255, 0, 0), 3)
             cv2.imwrite(f"{img_path}_predict.jpg", img)
 
     def make_question_answer(self, is_save=False):
@@ -194,14 +184,14 @@ class MMdetectionInference(MMdeployInference):
             box_threshold (float, optional): detector로 예측된 box들의 최소 임계값
 
         Returns:
-            List: [np.array(left,top,right,bottom,class_id) .... ]
+            List: [np.array(left,top,right,bottom,label) .... ]
             list안의 값은 np.array 형식으로 박스정보와 label 값이 int type으로 정의됨
         """
-        inferece = self.inference_detector(self.detector, img)
+        inferece = self.inference_detector(detector, img)
         predict = []
         for label, bboxes in enumerate(inferece):
             predict += [
-                np.append(self.xyxy2ltrb(bbox[:4]), [bbox[4], label])
+                np.append(bbox[:4], [bbox[4], label])
                 for bbox in bboxes
                 if (bbox[4] > box_threshold)
             ]
@@ -219,7 +209,6 @@ class MMdetectionInference(MMdeployInference):
             if is_save:
                 self.save_predict(cv2.imread(img), img_path, qa_info)
         question_answer = {
-            q: (int(bbox[-1]), f"{bbox[-2]}:.04f")
-            for q, bbox in sorted(answer_bbox.items())
+            q: (int(bbox[-1]), bbox[-2]) for q, bbox in sorted(answer_bbox.items())
         }
         return question_answer

@@ -68,7 +68,7 @@ if __name__ == "__main__":
         model_type="mmdetection",
         model_info=[
             "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/faster_rcnn_r50_fpn_fp16_1x_coco.py",
-            "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/epoch_24.pth",
+            "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/best_bbox_mAP_epoch_90.pth",
         ],
         coco_json_path="/opt/ml/input/data/annotations/train_v1-3.json",
         img_folder_path="/opt/ml/input/code",
