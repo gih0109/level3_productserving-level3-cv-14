@@ -4,6 +4,7 @@ import requests  # backend와의 연결을 위해 필요합니다.
 from PIL import Image  # jpg 이미지로 저장, 문제에 O, X등 패치를 붙이기 위해 필요합니다.
 import albumentations as A  # image reshape을 위해 사용합니다.
 import numpy as np  # image를 다룰때, PIL이미지로 변환할때 등 사용합니다.
+from datetime import datetime
 
 import streamlit as st  # frontend로 사용합니다.
 from inference import *  # 문제와 정답(모델의 예측)을 매칭할때 사용합니다. [건혁님]
@@ -37,7 +38,7 @@ def main():
     exam_choice = (
         year_choice + "_" + test_map[test_choice] + "_" + type_map[type_choice]
     )  # ex: 2021_f_a
-    exam_info = exam_choice + "_0"  # 건혁님 모듈에 넣기 위한 input, TODO: 불필요하다면 "_0"은 제거
+    exam_info = exam_choice + "_1"  # 건혁님 모듈에 넣기 위한 input, TODO: 불필요하다면 "_0"은 제거
 
     read_info = requests.get(f"http://127.0.0.1:8001/{exam_choice}")
     answer = read_info.json()["answer"]
@@ -68,17 +69,27 @@ def main():
         # TODO: 현재는 aistages 서버의 고정된 공간에 저장하도록 되어 있지만, 향후 DB 연결 등으로 확장 할 수 있습니다.
         # 이경우 user_id등을 부여해서 여러명의 사용자가 동시 접속한 경우에도 대응할 수 있도록 할 수 있습니다.
         # 다만 그러면 로그인 기능 등을 추가로 구현해야 합니다.
+        start_time = datetime.now()
+        file_write_state = st.text("Writing pdf...")
         save_path = Path("/opt/ml/input/code/fastapi/app/tmp", uploaded_file.name)
         with open(save_path, mode="wb") as w:
             w.write(uploaded_file.getvalue())
+        end_time = datetime.now()
+        elapsed_time = end_time - start_time
+        file_write_state.text(f"Writing pdf...done! elapsed : {elapsed_time}")
 
         # tmp 폴더에 저장한 pdf 이미지 불러오고 resize 합니다.
         # TODO: resize 없이 원본이미지를 그대로 활용할 수도 있습니다. (annotation 정보를 역으로 이미지 크기에 맞춤)
         # 현재 annotation한 question box의 좌표정보를 이용하기 위해서는 우리가 hasty에 올렸던 이미지 크기(3309, 2339)와 동일해야 합니다.
         # 불필요한 resize를 줄인다면 더욱 시간을 절약할 수 있습니다.
+        start_time = datetime.now()
+        file_write_state = st.text("Reshape imgs...")
         images = convert_from_path(save_path)
         for idx, image in enumerate(images):
             images[idx] = A.resize(np.array(image), 3309, 2339)
+        end_time = datetime.now()
+        elapsed_time = end_time - start_time
+        file_write_state.text(f"Reshaping imgs...done! elapsed : {elapsed_time}")
 
         # TODO: 아래 코드는 건혁님 모듈과 연결하기 위한 불필요한 작업입니다. 제거하고 바로 연결할 수 있도록 수정이 필요합니다.
         # 건혁님 모듈에 연결하기 위해서 argument 생성 (imgs_path, jpg 이미지로 나눠서 다시 tmp에 저장)
@@ -96,20 +107,27 @@ def main():
         # 현재는 건혁님이 코드를 작성해 주셨습니다.
         # GCP 배포를 고려한다면 추후에 mmdeploy의 onnx 모델(cpu)을 사용하거나,
         # 다른 서버에서 gpu를 사용한 예측만 수행해서 결과를 받아오는 방식으로 수정할 수 있습니다.
+        start_time = datetime.now()
+        inference_state = st.text("Inference Answer Model...")
         inference_model = make_inference_model(
             model_type="mmdetection",
             model_info=[
-                "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/faster_rcnn_r50_fpn_fp16_1x_coco.py",
-                "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/best_bbox_mAP_epoch_90.pth",
+                "/opt/ml/input/code/fastapi/app/model/cascade_rcnn_pafpn_convnext-xl_last.py",
+                "/opt/ml/input/code/fastapi/app/model/best_bbox_mAP_epoch_15.pth",
             ],
-            coco_json_path="/opt/ml/input/data/annotations/train_v1-3.json",
+            coco_json_path="/opt/ml/input/data/annotations/t_v1-4-1.json",  # fix
             img_folder_path="/opt/ml/input/code/fastapi/app/tmp",
-            imgs_path=imgs_path[:4],
+            imgs_path=imgs_path[:4],  # fix
             exam_info=exam_info,
         )
         user_solution = inference_model.make_user_solution()
+        end_time = datetime.now()
+        elapsed_time = end_time - start_time
+        inference_state.text(f"Inference Answer Model...done! elapsed : {elapsed_time}")
 
         # 채점하는 모듈입니다. TODO는 위에 적어뒀습니다.
+        start_time = datetime.now()
+        scoring_state = st.text("Scoring...")
         scoring_result = score(user_solution=user_solution, answer=answer)
         st.write(scoring_result)
         # 채점된 이미지를 만들기 위해 o, x 이미지를 불러오는 부분입니다.
@@ -122,7 +140,7 @@ def main():
         exam_info = inference_model.exam_info
 
         # TODO: 현재 paste 좌표가 좌측 하단으로 잡혀있음 (좌측 상단으로 바꿔야함. annotation 정보 확인 필요)
-        for img in imgs_path[:4]:
+        for img in imgs_path[:4]:  # fix
             inference_model.load_anns(
                 inference_model.exam_info, img, inference_model.coco
             )
@@ -155,6 +173,10 @@ def main():
                         x_image,
                     )
             st.image(np.array(background))
+
+        end_time = datetime.now()
+        elapsed_time = end_time - start_time
+        scoring_state.text(f"Saving pdf...done! elapsed : {elapsed_time}")
 
 
 main()
