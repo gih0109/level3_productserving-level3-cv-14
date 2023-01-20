@@ -12,6 +12,9 @@ class MMdeployInference:
         self.detector = detector
         self.exam_info = self.load_exam_info(exam_info, coco)
 
+    def update_exam_info(self, exam_info):
+        self.exam_info = self.load_exam_info(exam_info, self.coco)
+
     def load_anns(self, exam_info, img_path, coco):
         """
         시험의 정보와 이미지를 받아 그것에 대응되는 사전에 annotation된 anns을 반환
@@ -292,7 +295,7 @@ def score(user_solution=None, answer=None):
     # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
     # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
     # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
-    for question in map(str, range(1, 13)):  # fix
+    for question in map(str, range(1, 22)):  # fix
         if user_solution[question] == answer[question]:
             result[question] = "O"
         else:

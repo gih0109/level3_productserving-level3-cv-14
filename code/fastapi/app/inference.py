@@ -14,8 +14,8 @@ def make_inference_model(
     model_info,
     coco_json_path,
     img_folder_path,
-    imgs_path,
-    exam_info,
+    imgs_path=["1.jpg"],
+    exam_info="",
 ):
     """
     Args:
