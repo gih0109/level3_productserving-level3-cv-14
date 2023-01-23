@@ -110,3 +110,28 @@ def init_value():
     type_choice = st.selectbox("채점을 원하시는 시험의 종류를 선택해 주세요", type_)
 
     return year_choice, test_map[test_choice], type_map[type_choice]
+
+
+def score(user_solution=None, answer=None):
+    """채점하는 함수
+    answer의 경우, key, value가 모두 str 타입인데, user_solution은 int타입이라 불필요한 변환과정이 들어갑니다.
+    user_solution dictionary의 key, value도 모두 str로 통일해서 불필요한 타입 변환을 줄이면 좋을 것 같습니다.
+
+    Args:
+        user_solution (dict): _description_. Defaults to None.
+        answer (dict): _description_. Defaults to None.
+
+    Returns:
+        dict: key : 문제번호, value : O or X
+    """
+    user_solution = {f"{k}": f"{v}" for k, v in user_solution.items()}
+    result = {}
+    # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
+    # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
+    # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
+    for question in map(str, range(1, 22)):  # fix
+        if user_solution[question] == answer[question]:
+            result[question] = "O"
+        else:
+            result[question] = "X"
+    return result

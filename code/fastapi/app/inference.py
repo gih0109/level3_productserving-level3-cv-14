@@ -68,8 +68,8 @@ if __name__ == "__main__":
             "/opt/ml/input/code/work_dirs/faster_rcnn_r50_fpn_fp16_1x_coco/best_bbox_mAP_epoch_90.pth",
         ],
         coco_json_path="/opt/ml/input/data/annotations/train_v1-3.json",
-        img_folder_path="/opt/ml/input/code/fastapi/app/tmp",
-        imgs_path=[f"{i}.jpg" for i in range(1, 13)],
-        exam_info="2021_f_a_0",
+        img_folder_path="/opt/ml/input/",
+        imgs_path=[f"{i}.jpg" for i in range(1, 5)],
+        exam_info="2023_f_n_0",
     )
     print(inference_model.make_user_solution(is_save=True, log_save=True))

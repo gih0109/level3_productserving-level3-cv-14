@@ -15,24 +15,45 @@ class MMdeployInference:
     def update_exam_info(self, exam_info):
         self.exam_info = self.load_exam_info(exam_info, self.coco)
 
-    def load_anns(self, exam_info, img_path, coco):
-        """
-        시험의 정보와 이미지를 받아 그것에 대응되는 사전에 annotation된 anns을 반환
+    def load_anns(self, img_path):
+        img_info = self.exam_info[int(img_path.split(".")[0]) - 1]
+        ann_ids = self.coco.getAnnIds(imgIds=img_info["id"])
+        anns = self.coco.loadAnns(ann_ids)
+        return img_info, anns
+
+    def resize_box(self, q_a_box, img_info, img_shape):
+        """input의 이미지 size와 사전에 정의된 annotation의 box사이즈를 대응시킴
 
         Args:
-            exam_info (str): 체첨하려는 시험의 정보
-            img_path (str): 쪽수가 적혀있는 img의 경로, ex) 3.jpg : 3쪽의 이미지
-            coco : 사전에 제작된 annotation기반 coco format 데이터
-            annotation box 정보 : x,y,w,h
+            q_a_box : dict : key = 문제, value : 문제에 대응하는 정답박스 정보
+            img_info : 사전에 정의된 annotation 이미지 정보
+            img_shape : input 이미지의 사이즈
+
+        Returns:
+            annotation의 size를 적용한
+            q_a_box : dict : key = 문제, value : 문제에 대응하는 정답박스 정보
+        """
+        w_r = img_shape[1] / img_info["width"]
+        h_r = img_shape[0] / img_info["height"]
+
+        q_a_box = {
+            q: (int(a[0] * w_r), int(a[1] * h_r), int(a[2] * w_r), int(a[3] * h_r))
+            for q, a in q_a_box.items()
+        }
+        return q_a_box
+
+    def match_qa(self, anns):
+        """
+        사전에 정의된 annotation을 기반으로 같은 문제의 question 박스와 answer 박스를 매칭
+        Args:
+            anns : 사전에 정의된 annotation 정보
 
         Returns:
             anns_dict (dict): 문제에 대응하는 정답 박스의 위치 반환
             key : category_id
             value : answer box의 정보 : left,top,right,bottom
         """
-        img_info = exam_info[int(img_path.split(".")[0]) - 1]
-        ann_ids = coco.getAnnIds(imgIds=img_info["id"])
-        anns = coco.loadAnns(ann_ids)
+
         questions = [ann for ann in anns if ann["category_id"] > 6]
         answers = [ann for ann in anns if ann["category_id"] <= 6]
 
@@ -248,19 +269,19 @@ class MMdetectionInference(MMdeployInference):
         """
         answer_bbox, a_label = {}, []
         for img_path in self.imgs_path:
-            img = os.path.join(self.img_folder_path, img_path)
+            img_info, anns = self.load_anns(img_path)
+            img = cv2.imread(os.path.join(self.img_folder_path, img_path))
+
             predict = self.get_predict(img, self.detector)
-            anns = self.load_anns(self.exam_info, img_path, self.coco)
-            qa_info = self.make_qa(predict, anns)
+            q_a_box = self.match_qa(anns)
+            q_a_box = self.resize_box(q_a_box, img_info, img.shape)
+            qa_info = self.make_qa(predict, q_a_box)
             answer_bbox.update(qa_info)
 
             if is_save:
-                self.save_predict(cv2.imread(img), img_path, qa_info)
+                self.save_predict(img, img_path, qa_info)
 
             if log_save:
-                img_info = self.exam_info[int(img_path.split(".")[0]) - 1]
-                ann_ids = self.coco.getAnnIds(imgIds=img_info["id"])
-                anns = self.coco.loadAnns(ann_ids)
                 a_label += [ann for ann in anns if ann["category_id"] <= 6]
 
         if log_save:
@@ -276,28 +297,3 @@ class MMdetectionInference(MMdeployInference):
 
         user_solution = {q: int(bbox[-1]) for q, bbox in sorted(answer_bbox.items())}
         return user_solution
-
-
-def score(user_solution=None, answer=None):
-    """채점하는 함수
-    answer의 경우, key, value가 모두 str 타입인데, user_solution은 int타입이라 불필요한 변환과정이 들어갑니다.
-    user_solution dictionary의 key, value도 모두 str로 통일해서 불필요한 타입 변환을 줄이면 좋을 것 같습니다.
-
-    Args:
-        user_solution (dict): _description_. Defaults to None.
-        answer (dict): _description_. Defaults to None.
-
-    Returns:
-        dict: key : 문제번호, value : O or X
-    """
-    user_solution = {f"{k}": f"{v}" for k, v in user_solution.items()}
-    result = {}
-    # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
-    # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
-    # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
-    for question in map(str, range(1, 22)):  # fix
-        if user_solution[question] == answer[question]:
-            result[question] = "O"
-        else:
-            result[question] = "X"
-    return result
