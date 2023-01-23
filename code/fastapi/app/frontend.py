@@ -53,7 +53,7 @@ def main():
         # 채점하는 모듈입니다. TODO는 위에 적어뒀습니다.
         start_time = datetime.now()
         scoring_state = st.text("Scoring...")
-        scoring_result = score(user_solution=user_solution, answer=answer)
+        scoring_result = score(user_solution, answer)
         st.write(scoring_result)
         show_score_img(scoring_result, inference_model, imgs_path)
         end_time = datetime.now()

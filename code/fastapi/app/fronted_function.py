@@ -33,7 +33,7 @@ class Pdf2Jpg:
         file_write_state = st.text("Reshape imgs...")
         images = convert_from_path(save_path)
         for idx, image in enumerate(images):
-            images[idx] = A.resize(np.array(image), 3309, 2339)
+            images[idx] = np.array(image)
         end_time = datetime.now()
         elapsed_time = end_time - start_time
         file_write_state.text(f"Reshaping imgs...done! elapsed : {elapsed_time}")
@@ -63,7 +63,6 @@ def show_score_img(scoring_result, inference_model, imgs_path):
 
     # TODO: 현재 paste 좌표가 좌측 하단으로 잡혀있음 (좌측 상단으로 바꿔야함. annotation 정보 확인 필요)
     for img in imgs_path:  # fix
-        inference_model.load_anns(inference_model.exam_info, img, inference_model.coco)
         background = Image.open(f"/opt/ml/input/code/fastapi/app/tmp/{img}").convert(
             "RGBA"
         )  # 배경 이미지 생성
