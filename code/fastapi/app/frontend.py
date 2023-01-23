@@ -45,7 +45,7 @@ def main():
         inference_state = st.text("Inference Answer Model...")
         inference_model.imgs_path = imgs_path
         inference_model.update_exam_info(exam_info)
-        user_solution = inference_model.make_user_solution()
+        user_solution = inference_model.make_user_solution(True, True)
         end_time = datetime.now()
         elapsed_time = end_time - start_time
         inference_state.text(f"Inference Answer Model...done! elapsed : {elapsed_time}")

@@ -76,16 +76,16 @@ def show_score_img(scoring_result, inference_model, imgs_path):
                     o_image,
                     (
                         int(bbox[0] - o_width / 2),
-                        int(bbox[1] - o_height / 2),
+                        int(bbox[1] - o_height / 2) + 10,
                     ),
                     o_image,
                 )
-            else:
+            elif scoring_result[question] == "X":
                 background.paste(
                     x_image,
                     (
                         int(bbox[0] - x_width / 2),
-                        int(bbox[1] - x_height / 2),
+                        int(bbox[1] - x_height / 2) + 10,
                     ),
                     x_image,
                 )
@@ -117,20 +117,20 @@ def score(user_solution=None, answer=None):
     user_solution dictionary의 key, value도 모두 str로 통일해서 불필요한 타입 변환을 줄이면 좋을 것 같습니다.
 
     Args:
-        user_solution (dict): _description_. Defaults to None.
-        answer (dict): _description_. Defaults to None.
+        user_solution (dict): key : 문제번호, value : 정답 값
+        answer (dict): key : 문제번호, value : 정답 값
 
     Returns:
         dict: key : 문제번호, value : O or X
     """
     user_solution = {f"{k}": f"{v}" for k, v in user_solution.items()}
     result = {}
-    # TODO: 경우에 따라 유연하게 객관식 문제 모두를 대처할 수 있도록 수정이 필요합니다.
-    # user_solution dictionary가 객관식 문제만 포함하고, answer는 1~30번까지 모두 존재해서 indexing error를 방지하고자,
-    # 1부터 21번까지만 수행하게끔 하드코딩 되어 있습니다.
-    for question in map(str, range(1, 22)):  # fix
-        if user_solution[question] == answer[question]:
-            result[question] = "O"
+    for question in map(str, range(1, len(answer) + 1)):
+        if question not in user_solution.keys() or user_solution[question] == "-1":
+            result[question] = "No"
         else:
-            result[question] = "X"
+            if user_solution[question] == answer[question]:
+                result[question] = "O"
+            else:
+                result[question] = "X"
     return result

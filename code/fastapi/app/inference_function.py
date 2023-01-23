@@ -191,7 +191,7 @@ class MMdeployInference:
             iou_list = [self.compute_iou(pred, bbox) for pred in predict]
             max_iou = max(iou_list) if iou_list else 0
             if max_iou < 0.3:
-                question_answer[q - 6] = np.array([0, 0, 0, 0, 0, 0])
+                question_answer[q - 6] = np.array([0, 0, 0, 0, 0, -1])
             else:
                 question_answer[q - 6] = predict[iou_list.index(max_iou)]
         return question_answer
@@ -212,9 +212,11 @@ class MMdeployInference:
                 3,
             )
             cv2.rectangle(img, (left, top), (right, bottom), (255, 0, 0), 3)
-            cv2.imwrite(f"{img_path}_predict.jpg", img)
+            cv2.imwrite(
+                f"/opt/ml/input/code/fastapi/app/tmp/{img_path}_predict.jpg", img
+            )
 
-    def make_question_answer(self, is_save=False):
+    def make_question_answer(self, img_save=False):
         answer_bbox = {}
         for img_path in self.imgs_path:
             img = cv2.imread(os.path.join(self.img_folder_path, img_path))
@@ -222,7 +224,7 @@ class MMdeployInference:
             anns = self.load_anns(self.exam_info, img_path, self.coco)
             qa_info = self.make_qa(predict, anns)
             answer_bbox.update(qa_info)
-            if is_save:
+            if img_save:
                 self.save_predict(img, img_path, qa_info)
         question_answer = {q: bbox[-1] for q, bbox in sorted(answer_bbox.items())}
         return question_answer
@@ -258,10 +260,10 @@ class MMdetectionInference(MMdeployInference):
         predict = sorted(predict, key=lambda x: x[4], reverse=True)
         return predict
 
-    def make_user_solution(self, is_save=False, log_save=False):
+    def make_user_solution(self, img_save=False, log_save=False):
         """
         Args:
-            is_save (bool): 예측한 결과의 사진을 저장할지 여부
+            img_save (bool): 예측한 결과의 사진을 저장할지 여부
             log_save(bool): 이미지의 정답과 예측값 그 값에 대응하는 confidence csv 저장
 
         Returns:
@@ -278,7 +280,7 @@ class MMdetectionInference(MMdeployInference):
             qa_info = self.make_qa(predict, q_a_box)
             answer_bbox.update(qa_info)
 
-            if is_save:
+            if img_save:
                 self.save_predict(img, img_path, qa_info)
 
             if log_save:
@@ -293,7 +295,7 @@ class MMdetectionInference(MMdeployInference):
                     "confidence": [bbox[-2] for q, bbox in a_b],
                 }
             )
-            pred_data.to_csv("./predict_log.csv")
+            pred_data.to_csv("/opt/ml/input/code/fastapi/app/tmp/predict_log.csv")
 
         user_solution = {q: int(bbox[-1]) for q, bbox in sorted(answer_bbox.items())}
         return user_solution
