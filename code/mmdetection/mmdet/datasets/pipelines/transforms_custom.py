@@ -24,10 +24,13 @@ except ImportError:
 class VerticalHalfCutMix:
 
     def __init__(self,
+                 img_scale=(640, 640),
                  max_iters=15,
                  prob=0.5):
         # log_img_scale(img_scale, skip_square=True)
+        assert isinstance(img_scale, tuple)
         assert 0 <= prob <= 1
+        self.dynamic_scale = img_scale
         self.max_iters = max_iters
         self.prob = prob
 
@@ -71,9 +74,15 @@ class VerticalHalfCutMix:
         if results['mix_results'][0]['gt_bboxes'].shape[0] == 0:
             # empty bbox
             return results
+        
 
         img_2_results = results['mix_results'][0]
         img_2 = img_2_results['img']
+
+        # resize img_2
+        scale_ratio = min(self.dynamic_scale[0] / img_2.shape[0],
+                          self.dynamic_scale[1] / img_2.shape[1])
+        img_2 = mmcv.imresize(img_2, (self.dynamic_scale[1], self.dynamic_scale[0]))
 
         img_1 = results['img']
 
@@ -82,21 +91,25 @@ class VerticalHalfCutMix:
         img_2_bboxes = img_2_results['gt_bboxes']
         img_2_labels = img_2_results['gt_labels']
 
+        # adjust img_2 bbox
+        img_2_bboxes[:, 0::2] = img_2_bboxes[:, 0::2] * scale_ratio
+        img_2_bboxes[:, 1::2] = img_2_bboxes[:, 1::2] * scale_ratio
+
         origin_h, origin_w = img_1.shape[:2]
         target_h, target_w = img_2.shape[:2]
         half_target_w = int(target_w / 2)
 
+        # cutmix
         cutmix_img = np.zeros((origin_h, origin_w, 3)).astype(np.uint8)
 
+        # determine cutmix position 
         cutmix_val = 0
         if np.random.randint(0, 2) == 1:
             cutmix_val = 1
-        # cutmix_val = 1
-        # print(cutmix_val)
 
         if cutmix_val == 1:
             cutmix_img[:, 0:half_target_w] = img_1[:, 0:half_target_w]
-            cutmix_img[:, half_target_w:-1] = img_2[:, half_target_w:-1]
+            cutmix_img[:, half_target_w: ] = img_2[:, half_target_w: ]
 
             idxes_1, idxes_2 = (img_1_bboxes[:, 0] < half_target_w), (img_2_bboxes[:, 0] >= half_target_w)
             l_1, l_2 = img_1_labels[idxes_1], img_2_labels[idxes_2]
@@ -104,7 +117,7 @@ class VerticalHalfCutMix:
 
         else:
             cutmix_img[:, 0:half_target_w] = img_2[:, 0:half_target_w]
-            cutmix_img[:, half_target_w:-1] = img_1[:, half_target_w:-1]
+            cutmix_img[:, half_target_w: ] = img_1[:, half_target_w: ]
 
             idxes_1, idxes_2 = (img_1_bboxes[:, 0] >= half_target_w), (img_2_bboxes[:, 0] < half_target_w)
             l_1, l_2 = img_1_labels[idxes_1], img_2_labels[idxes_2]
