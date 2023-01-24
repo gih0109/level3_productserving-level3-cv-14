@@ -194,7 +194,7 @@ if __name__ == '__main__':
     if not os.path.exists(args.dst_path):
         os.mkdir(args.dst_path)
     mix_check()
-    # mix_patch()
+    mix_patch()
 
     # 최종 파일 이름 변경
     images_list = os.listdir(args.dst_path)
