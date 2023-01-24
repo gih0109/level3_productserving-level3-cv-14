@@ -1,6 +1,7 @@
 import os
 import json
 import argparse
+from tqdm import tqdm
 
 
 def parse_args():
@@ -75,6 +76,17 @@ def main():
     val_json['categories'] = categories
     val_json['images'] = val_images
     val_json['annotations'] = val_annotations
+
+    for i in tqdm(range(len(train_json['images']))):
+        for x in train_json['annotations']:
+            if x['image_id'] == train_json['images'][i]['id']:
+                x['image_id'] = i
+        train_json['images'][i]['id'] = i
+    for i in tqdm(range(len(val_json['images']))):
+        for x in val_json['annotations']:
+            if x['image_id'] == val_json['images'][i]['id']:
+                x['image_id'] = i
+        val_json['images'][i]['id'] = i
 
     with open(json_path + f'{args.name_train}.json', 'w') as f:
         json.dump(train_json, f)
