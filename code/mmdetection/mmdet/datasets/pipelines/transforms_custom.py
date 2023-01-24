@@ -67,6 +67,14 @@ class VerticalHalfCutMix:
         return index
 
     def _vertical_cutmix_transform(self, results):
+        """CutMix transform function.
+
+        Args:
+            results (dict): Result dict.
+
+        Returns:
+            dict: Updated result dict.
+        """
         assert 'mix_results' in results
         assert len(
             results['mix_results']) == 1, 'MixUp only support 2 images now !'
@@ -99,14 +107,15 @@ class VerticalHalfCutMix:
         target_h, target_w = img_2.shape[:2]
         half_target_w = int(target_w / 2)
 
-        # cutmix
+        # create empty img
         cutmix_img = np.zeros((origin_h, origin_w, 3)).astype(np.uint8)
 
-        # determine cutmix position 
+        # choose cutmix position 
         cutmix_val = 0
         if np.random.randint(0, 2) == 1:
             cutmix_val = 1
 
+        # cutmix
         if cutmix_val == 1:
             cutmix_img[:, 0:half_target_w] = img_1[:, 0:half_target_w]
             cutmix_img[:, half_target_w: ] = img_2[:, half_target_w: ]
@@ -127,6 +136,7 @@ class VerticalHalfCutMix:
         cutmix_bboxes = np.concatenate((b_1, b_2), axis=0)
 
         results['img'] = cutmix_img.astype(np.uint8)
+        results['img_shape'] = cutmix_img.shape
         results['gt_bboxes'] = cutmix_bboxes
         results['gt_labels'] = cutmix_labels
 
