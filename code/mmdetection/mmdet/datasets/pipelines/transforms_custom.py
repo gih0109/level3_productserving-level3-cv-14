@@ -24,13 +24,10 @@ except ImportError:
 class VerticalHalfCutMix:
 
     def __init__(self,
-                 img_scale=(640, 640),
                  max_iters=15,
                  prob=0.5):
         # log_img_scale(img_scale, skip_square=True)
-        assert isinstance(img_scale, tuple)
         assert 0 <= prob <= 1
-        self.dynamic_scale = img_scale
         self.max_iters = max_iters
         self.prob = prob
 
@@ -83,16 +80,16 @@ class VerticalHalfCutMix:
             # empty bbox
             return results
         
+        img_1 = results['img']
+        img_1_scale = img_1.shape
 
         img_2_results = results['mix_results'][0]
         img_2 = img_2_results['img']
 
         # resize img_2
-        scale_ratio = min(self.dynamic_scale[0] / img_2.shape[0],
-                          self.dynamic_scale[1] / img_2.shape[1])
-        img_2 = mmcv.imresize(img_2, (self.dynamic_scale[1], self.dynamic_scale[0]))
-
-        img_1 = results['img']
+        scale_ratio = min(img_1_scale[0] / img_2.shape[0],
+                          img_1_scale[1] / img_2.shape[1])
+        img_2 = mmcv.imresize(img_2, (img_1_scale[1], img_1_scale[0]))
 
         img_1_bboxes = results['gt_bboxes']
         img_1_labels = results['gt_labels']
