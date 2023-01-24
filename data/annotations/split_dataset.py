@@ -9,7 +9,7 @@ def parse_args():
     parser.add_argument('image_version', help='version of images(e.g. train_v1-1)')
     parser.add_argument('json_version', help='version of json file(e.g. train_v1-1)')
     parser.add_argument('years_train', help='years of train set(e.g. 2013,2014,2015)')
-    parser.add_argument('years_val', help='years of val set(e.g. 2016,2017,2018)')
+    # parser.add_argument('years_val', help='years of val set(e.g. 2016,2017,2018)')
     parser.add_argument('name_train', help='name of the new train json file(e.g. new_train)')
     parser.add_argument('name_val', help='name of the new val json file(e.g. new_val)')
     args = parser.parse_args()
@@ -20,11 +20,11 @@ def parse_args():
 def main():
     args = parse_args()
 
-    image_path = '/opt/ml/final/data/images/'
-    json_path = '/opt/ml/final/data/annotations/'
+    image_path = '/opt/ml/input/data/images/'
+    json_path = '/opt/ml/input/data/annotations/'
 
     train = list(args.years_train.split(','))
-    val = list(args.years_val.split(','))
+    # val = list(args.years_val.split(','))
 
     # image 옮기기
     imgs = os.listdir(image_path + args.image_version)
