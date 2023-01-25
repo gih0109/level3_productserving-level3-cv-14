@@ -33,6 +33,8 @@ test_v1: 풀이가 없는 시험지(2012) 데이터<br/>
 
 <br/>
 
+## file naming
+
 **file name: {year}\_{test}\_{type}_{풀이여부}-{쪽수}.jpg**
 * test: 6월 모의고사, 9월 모의고사, 수능(6, 9, f)
 * type: 가형, 나형 또는 a형, b형 / 2022학년도부터는 통합(a, b, n)
