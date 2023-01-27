@@ -273,11 +273,25 @@ class Inference:
         return score_img
 
 
-def image_to_byte_array(image: Image) -> bytes:
-    # BytesIO is a file-like buffer stored in memory
-    imgByteArr = io.BytesIO()
-    # image.save expects a file-like as a argument
-    image.save(imgByteArr, format=image.format)
-    # Turn the BytesIO object back into a bytes object
-    imgByteArr = imgByteArr.getvalue()
-    return imgByteArr
+if __name__ == "__main__":
+    from pycocotools.coco import COCO
+    from mmdet.apis import init_detector
+    import os
+    from PIL import Image
+
+    model_config = "/opt/ml/input/data/models/19/config.py"
+    model_weight = "/opt/ml/input/data/models/19/model.pth"
+    coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
+    detector = init_detector(model_config, model_weight, device="cuda:0")
+
+    img_path = "/opt/ml/input/data/infer_test"
+    img_paths = [os.path.join(img_path, img) for img in os.listdir(img_path)]
+    images_np = [np.array(Image.open(img)) for img in img_paths]
+    inference = Inference(
+        images=images_np,
+        exam_info="2021_f_a",
+        coco=coco,
+        detector=detector,
+    )
+    result = inference.make_user_solution(True, True)
+    print("hi")
