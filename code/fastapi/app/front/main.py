@@ -1,14 +1,13 @@
 import streamlit as st
-import numpy as np
-import json
 import requests
 import sys
+from stqdm import stqdm
 import io
 
 sys.path.append("/opt/ml/input/code/fastapi/app/front")
 from utils import *
 
-backend_server = "118.67.130.180:30002"
+backend_server = "49.50.174.162:30002"
 
 st.set_page_config(layout="wide")
 
@@ -22,11 +21,21 @@ def main():
     exam_info = year_choice + "_" + test_choice + "_" + type_choice  # ex: 2021_f_a
 
     uploaded_file = st.file_uploader("손으로 풀이된 시험지의 pdf파일을 업로드하세요.", type=["pdf"])
+
     if uploaded_file:
         # 업로드한 파일을 backend server에 보내서 모델 예측을 받는 부분입니다.
+        length = 1  # TODO: uploaded_file의 길이로 수정합니다.
         files = {"file": uploaded_file.getvalue()}
+        progress = stqdm(total=length)
         user_solution = requests.post(
             f"http://{backend_server}/predict/{exam_info}", files=files
+        )
+        progress.update(1)
+        st.download_button(
+            "Download Scored Image",
+            data=io.BytesIO(user_solution.content).read(),
+            file_name="scoring.pdf",
+            mime="application/octet-stream",
         )
 
 

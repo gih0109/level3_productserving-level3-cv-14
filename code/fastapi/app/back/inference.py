@@ -63,9 +63,9 @@ class Inference:
             List: [np.array(left,top,right,bottom,label) .... ]
             list안의 값은 np.array 형식으로 박스정보와 label 값이 int type으로 정의됨
         """
-        inferece = self.inference_detector(self.detector, img)
+        inference = self.inference_detector(self.detector, img)
         predict = []
-        for label, bboxes in enumerate(inferece):
+        for label, bboxes in enumerate(inference):
             predict += [
                 np.append(bbox[:4], [bbox[4], label])
                 for bbox in bboxes
@@ -270,10 +270,7 @@ class Inference:
                         x_image,
                     )
             score_img.append(background)
-
-        p, df = score_img[0], score_img[1:]
-        p.save(r"./app/log/scoring_img.pdf", save_all=True, append_images=df)
-        return json.dumps(score_img.tolist())
+        return score_img
 
 
 def image_to_byte_array(image: Image) -> bytes:

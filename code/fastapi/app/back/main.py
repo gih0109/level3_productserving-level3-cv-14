@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
-import json
-from fastapi import FastAPI, UploadFile, File, Form
+import io
+from fastapi import FastAPI, UploadFile, File, Response
 from fastapi.param_functions import Depends
 from pydantic import Json
 from pdf2image import convert_from_bytes
@@ -45,7 +45,7 @@ def predict(exam_info: str, file: UploadFile = File(...)):
     images_np = [np.array(image) for image in images]
     inference = Inference(
         images=images_np,
-        exam_info="2021_f_a",
+        exam_info=exam_info,
         coco=coco,
         detector=detector,
     )
@@ -53,4 +53,8 @@ def predict(exam_info: str, file: UploadFile = File(...)):
     _score = score(result, answer)
 
     scoring_img = inference.save_score_img(_score)
-    return scoring_img
+    imgByteArr = io.BytesIO()
+    scoring_img[0].save(
+        imgByteArr, save_all=True, append_images=scoring_img[1:], format="PDF"
+    )
+    return Response(imgByteArr.getvalue(), media_type="application/pdf")
