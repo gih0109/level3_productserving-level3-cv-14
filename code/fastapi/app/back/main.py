@@ -29,18 +29,18 @@ detector = init_detector(model_config, model_weight, device="cuda:0")
 
 # 요청하는 시험에 대한 정답을 가져오는 부분입니다.
 # TODO: 지훈님께서 만들어준 DB와 연결이 필요합니다.
-@app.get("/answer/{exam_id}", description="해당 시험에 대한 정답을 가져옵니다")
-async def get_answers(exam_id: str) -> dict:
-    answer_path = Path(answer_dir, exam_id + ".csv")
+
+
+def get_answers(exam_info):
+    answer_path = Path(answer_dir, exam_info + ".csv")
     answer = pd.read_csv(answer_path)
-    answer.index += 1  # 1번부터 시작하도록
-    parsed = json.loads(answer.to_json(orient="columns"))
-    return parsed
+    return {k: v for k, v in zip(answer["문항번호"], answer["정답"])}
 
 
 # 이미지를 불러와서 모델 예측을 수행하는 부분입니다.
 @app.post("/predict/{exam_info}")
 def predict(exam_info: str, file: UploadFile = File(...)):
+    answer = get_answers(exam_info)
     images = convert_from_bytes(file.file._file.read())
     images_np = [np.array(image) for image in images]
     inference = Inference(
@@ -49,11 +49,8 @@ def predict(exam_info: str, file: UploadFile = File(...)):
         coco=coco,
         detector=detector,
     )
-    result = inference.make_user_solution()
-    return result
+    result = inference.make_user_solution(True, True)
+    _score = score(result, answer)
 
-
-# 모델 예측과 정답을 받아서 채점을 하는 부분입니다.
-@app.post("/score")
-async def get_score(user_solution: Json = Form(...), answer: Json = Form(...)):
-    return score(user_solution, answer)
+    scoring_img = inference.save_score_img(_score)
+    return scoring_img

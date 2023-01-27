@@ -1,7 +1,11 @@
 from mmdet.apis import inference_detector
+from PIL import Image
 import numpy as np
 import pandas as pd
 import cv2
+import json
+import io
+from copy import deepcopy
 
 
 class Inference:
@@ -37,6 +41,15 @@ class Inference:
         ann_ids = self.coco.getAnnIds(imgIds=img_info["id"])
         anns = self.coco.loadAnns(ann_ids)
         return img_info, anns
+
+    def load_anns_q(self, idx):
+        """
+        시험의 정보와 이미지를 받아 그것에 대응되는 사전에 annotation된 questions을 반환
+        """
+        _, anns = self.load_anns(idx)
+        questions = [ann for ann in anns if ann["category_id"] > 6]
+        anns_dict = {q["category_id"]: self.xywh2ltrb(q["bbox"]) for q in questions}
+        return anns_dict
 
     def get_predict(self, img, box_threshold=0.3):
         """_summary_
@@ -194,8 +207,8 @@ class Inference:
             dict: key 문제번호, value : 예측한 체크박스의 번호
         """
         answer_bbox, a_label = {}, []
-
-        for idx, img in enumerate(self.images):
+        images = deepcopy(self.images)
+        for idx, img in enumerate(images):
             img_info, anns = self.load_anns(idx)
             predict = self.get_predict(img)
             q_a_box = self.match_qa(anns)
@@ -222,3 +235,52 @@ class Inference:
 
         user_solution = {q: int(bbox[-1]) for q, bbox in sorted(answer_bbox.items())}
         return user_solution
+
+    def save_score_img(self, scoring_result):
+        # 채점된 이미지를 만들기 위해 o, x 이미지를 불러오는 부분입니다.
+        # TODO: 위의 input이미지의 resize 부분과 함께 고려해야 할 사항입니다.
+        o_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_image/correct.png")
+        x_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_image/wrong.png")
+        o_width, o_height = o_image.size
+        x_width, x_height = x_image.size
+
+        # TODO: 현재 paste 좌표가 좌측 하단으로 잡혀있음 (좌측 상단으로 바꿔야함. annotation 정보 확인 필요)
+        score_img = []
+        for idx, img in enumerate(self.images):  # fix
+            background = Image.fromarray(img)
+            question_ann = self.load_anns_q(idx)
+            for cat_id, bbox in question_ann.items():
+                question = cat_id - 6  # 문제 번호: 1 ~ 30
+                if scoring_result[question] == "O":
+                    background.paste(
+                        o_image,
+                        (
+                            int(bbox[0] - o_width / 2),
+                            int(bbox[1] - o_height / 2) + 10,
+                        ),
+                        o_image,
+                    )
+                elif scoring_result[question] == "X":
+                    background.paste(
+                        x_image,
+                        (
+                            int(bbox[0] - x_width / 2),
+                            int(bbox[1] - x_height / 2) + 10,
+                        ),
+                        x_image,
+                    )
+            score_img.append(background)
+
+        p, df = score_img[0], score_img[1:]
+        p.save(r"./app/log/scoring_img.pdf", save_all=True, append_images=df)
+        return json.dumps(score_img.tolist())
+
+
+def image_to_byte_array(image: Image) -> bytes:
+    # BytesIO is a file-like buffer stored in memory
+    imgByteArr = io.BytesIO()
+    # image.save expects a file-like as a argument
+    image.save(imgByteArr, format=image.format)
+    # Turn the BytesIO object back into a bytes object
+    imgByteArr = imgByteArr.getvalue()
+    return imgByteArr

@@ -11,7 +11,7 @@ def score(user_solution=None, answer=None):
         dict: key : 문제번호, value : O or X
     """
     result = {}
-    for question in map(str, range(1, len(answer) + 1)):
+    for question in range(1, len(answer) + 1):
         if question not in user_solution.keys() or user_solution[question] == "-1":
             result[question] = "No"
         else:
