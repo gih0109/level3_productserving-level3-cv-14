@@ -33,6 +33,13 @@ test_v1: 풀이가 없는 시험지(2012) 데이터<br/>
 
 <br/>
 
+<br/>
+
+## infer_test
+inference.py test img : 실제 손풀이 데이터
+
+<br/>
+
 ## file naming
 
 **file name: {year}\_{test}\_{type}_{풀이여부}-{쪽수}.jpg**
