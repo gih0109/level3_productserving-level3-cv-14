@@ -19,9 +19,8 @@ from utils import *
 
 
 # settings
-answer_dir = "/opt/ml/input/code/fastapi/app/answer"
-model_config = "/opt/ml/input/data/models/19/config.py"
-model_weight = "/opt/ml/input/data/models/19/model.pth"
+model_config = "/opt/ml/input/code/mmdetection/work_dirs/swin-tiny_cos/swin-tiny_cos.py"
+model_weight = "/opt/ml/input/code/mmdetection/work_dirs/swin-tiny_cos/epoch_30.pth"
 coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
 
 
