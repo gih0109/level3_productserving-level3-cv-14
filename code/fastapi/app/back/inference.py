@@ -3,8 +3,7 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import cv2
-import json
-import io
+import os
 from copy import deepcopy
 
 
@@ -231,6 +230,8 @@ class Inference:
                     "confidence": [bbox[-2] for q, bbox in a_b],
                 }
             )
+            if not os.path.isdir("/opt/ml/input/code/fastapi/app/log"):
+                os.mkdir("/opt/ml/input/code/fastapi/app/log")
             pred_data.to_csv("/opt/ml/input/code/fastapi/app/log/predict_log.csv")
 
         user_solution = {q: int(bbox[-1]) for q, bbox in sorted(answer_bbox.items())}
@@ -295,3 +296,225 @@ if __name__ == "__main__":
     )
     result = inference.make_user_solution(True, True)
     print("hi")
+
+
+class Inference_v2:
+    def __init__(self, images, detector):
+        self.images = images
+        self.detector = detector
+        self.inference_detector = inference_detector
+
+    def get_predict(self, img):
+        """_summary_
+
+        Args:
+            img: numpy ndarray 형식의 이미지
+            detector: 사전에 제작된 mmdetection 모델
+
+        Returns:
+            List: [[left,top,right,bottom,label], .... ]
+            list안의 값은 list 형식으로 박스정보와 label 값이 int type으로 정의됨
+        """
+        inference = self.inference_detector(self.detector, img)
+        predict = []
+        for label, bboxes in enumerate(inference):
+            predict += [
+                [bbox[0], bbox[1], bbox[2], bbox[3], bbox[4], label]
+                for bbox in bboxes
+            ]
+        predict = sorted(predict, key=lambda x: x[4], reverse=True)
+        return predict
+
+    def compute_iou(self, box1, box2):
+        """iou 계산
+
+        Args:
+            box(List): [left,top,right,bottom]
+
+        Returns:
+            iou(float): box1과 box2의 iou값 반환
+        """
+        x1 = np.maximum(box1[0], box2[0])
+        y1 = np.maximum(box1[1], box2[1])
+        x2 = np.minimum(box1[2], box2[2])
+        y2 = np.minimum(box1[3], box2[3])
+
+        box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+        box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+        intersection = np.maximum(x2 - x1, 0) * np.maximum(y2 - y1, 0)
+        union = box1_area + box2_area - intersection
+
+        iou = intersection / union
+        assert iou <= 1, "iou값이 1 초과"
+        return iou
+
+    def save_predict(self, img, idx, predict, num):
+        """predicted img 저장
+
+        Args:
+            img(numpy.ndarray): 형식의 이미지
+            idx(int): 저장될 파일의 index
+            predict(list): 예측 결과
+            num(int): 문제 번호
+        """
+        for bboxes in predict:
+            for bbox in bboxes:
+                left, top, right, bottom, confidence_score, label = bbox[:6]
+                if label == 6:
+                    label = f'q{num}'
+                    num += 1
+                cv2.putText(
+                    img,
+                    f"{label}   {confidence_score:.4f}",
+                    (left, top - 10),
+                    cv2.FONT_HERSHEY_COMPLEX,
+                    0.9,
+                    (255, 0, 0),
+                    3,
+                )
+                cv2.rectangle(img, (left, top), (right, bottom), (255, 0, 0), 3)
+            cv2.imwrite(
+                f"/opt/ml/input/code/fastapi/app/log/{idx}_predict.jpg", img
+            )
+    
+    def match(self, predict):
+        """문제와 보기를 연결하는 함수
+
+        Args:
+            predict(list): 문제와 보기가 섞인 예측 결과
+        
+        Returns:
+            qa_list(list): [[[1번 문제], [1번 보기]], [[2번 문제], [2번 보기]], ...]
+
+        """
+        # 문제와 보기를 나누고 각각 겹치는 걸 계산
+        qa_list = []
+        # 좌, 우 / 문제, 보기 나누기
+        left_side_q, right_side_q = [], []
+        left_side_a, right_side_a = [], []
+        for p in predict:
+            if p[0] < self.images[0].shape[1] / 2:
+                if p[5] == 6:
+                    left_side_q.append(p)
+                else:
+                    left_side_a.append(p)
+            else:
+                if p[5] == 6:
+                    right_side_q.append(p)
+                else:
+                    right_side_a.append(p)
+        left_side_q, right_side_q = sorted(left_side_q, key=lambda x: -x[4]), sorted(right_side_q, key=lambda x: -x[4])
+        left_side_a, right_side_a = sorted(left_side_a, key=lambda x: -x[4]), sorted(right_side_a, key=lambda x: -x[4])
+
+        left_side = [[left_side_q[0]]]
+        for i in range(1, len(left_side_q)):
+            if self.compute_iou(left_side_q[0], left_side_q[i]) < 0.1:
+                left_side.append([left_side_q[i]])
+                break
+        if left_side_a:
+            for i in range(len(left_side)):
+                tmp = []
+                for j in range(len(left_side_a)):
+                    if self.compute_iou(left_side[i][0], left_side_a[j]) > 0:
+                        tmp.append(left_side_a[j])
+                tmp = sorted(tmp, key=lambda x: -x[4])
+                left_side[i].append(tmp[0])
+        qa_list += sorted(left_side, key=lambda x: x[0][1])
+        
+        right_side = [[right_side_q[0]]]
+        for i in range(1, len(right_side_q)):
+            if self.compute_iou(right_side_q[0], right_side_q[i]) < 0.1:
+                right_side.append([right_side_q[i]])
+                break
+        if right_side_a:
+            for i in range(len(right_side)):
+                tmp = []
+                for j in range(len(right_side_a)):
+                    if self.compute_iou(right_side[i][0], right_side_a[j]) > 0:
+                        tmp.append(right_side_a[j])
+                tmp = sorted(tmp, key=lambda x: -x[4])
+                right_side[i].append(tmp[0])
+        qa_list += sorted(right_side, key=lambda x: x[0][1])
+        return qa_list
+
+    def make_user_solution(self, img_save=False, log_save=False):
+        """
+        Args:
+            img_save(bool): 예측한 결과의 사진을 저장할지 여부
+            log_save(bool): 이미지의 보기, 정답의 예측값과 그 값에 대응하는 confidence를 csv로 저장
+
+        Returns:
+            user_solution(dict): key=문제번호, value=예측한 답
+            q_bbox(lst): 문제 박스의 bbox 좌표가 담긴 리스트(최종 output 이미지를 위한)
+        """
+        a_label, q_label, q_bbox = [], [], []
+        images = deepcopy(self.images)
+
+        num = 1
+        for idx, img in enumerate(images):
+            predict = self.get_predict(img)
+            predict = self.match(predict)
+            for bbox in predict:
+                for b in bbox:
+                    for i in range(4):
+                        b[i] = int(b[i])
+            if img_save:
+                self.save_predict(img, idx, predict, num)
+            q_bbox.append([])
+            for ps in predict:
+                if len(ps) == 1:
+                    q_label.append(ps[0])
+                    a_label.append([0,0,0,0,0,-1])
+                    q_bbox[idx].append(ps[0][:4])
+                else:
+                    for p in ps:
+                        if p[-1] == 6:
+                            q_label.append(p)
+                            q_bbox[idx].append(p[:4])
+                        else:
+                            a_label.append(p)
+            num += len(predict)
+        if log_save:
+            pred_data = pd.DataFrame([ x for x in zip([i for i in range(1, len(q_label)+1)], [x[-2] for x in q_label], [x[-1] for x in a_label], [x[-2] for x in a_label])], columns=['question', 'confidence_q', 'answer', 'confidence_a'])
+            if not os.path.isdir("/opt/ml/input/code/fastapi/app/log"):
+                os.mkdir("/opt/ml/input/code/fastapi/app/log")
+            pred_data.to_csv("/opt/ml/input/code/fastapi/app/log/predict_log.csv", index=False)
+
+        user_solution = {i+1: a[-1] for i, a in enumerate(a_label)}
+        return user_solution, q_bbox
+
+    def save_score_img(self, scoring_result, q_bbox):
+        # 채점된 이미지를 만들기 위해 o, x 이미지를 불러오는 부분입니다.
+        # TODO: 위의 input이미지의 resize 부분과 함께 고려해야 할 사항입니다.
+        o_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_image/correct.png")
+        x_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_image/wrong.png")
+        o_width, o_height = o_image.size
+        x_width, x_height = x_image.size
+
+        # TODO: 현재 paste 좌표가 좌측 하단으로 잡혀있음 (좌측 상단으로 바꿔야함. annotation 정보 확인 필요)
+        score_img = []
+        num_q = 1
+        for i, img in enumerate(self.images):  # fix
+            background = Image.fromarray(img)
+            for bbox in q_bbox[i]:
+                if scoring_result[num_q] == "O":
+                    background.paste(
+                        o_image,
+                        (
+                            int(bbox[0] - o_width / 2),
+                            int(bbox[1] - o_height / 2) + 10,
+                        ),
+                        o_image,
+                    )
+                elif scoring_result[num_q] == "X":
+                    background.paste(
+                        x_image,
+                        (
+                            int(bbox[0] - x_width / 2),
+                            int(bbox[1] - x_height / 2) + 10,
+                        ),
+                        x_image,
+                    )
+                num_q += 1
+            score_img.append(background)
+        return score_img
