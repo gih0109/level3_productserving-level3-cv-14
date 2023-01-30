@@ -16,9 +16,9 @@ st.set_page_config(layout="wide")
 categories = ['about us','Guideline', '체점하기']
 select = st.sidebar.selectbox("select a category", categories)
 
-
 def explain(): # 사용 설명서 
 
+    
     st.title("꼭 읽어주세요")
     st.markdown("<h3>시험 문제 풀 때 주의 사항</h3>", unsafe_allow_html=True)
     mult_correct_button = st.button("객관식")
@@ -49,14 +49,10 @@ def explain(): # 사용 설명서
         
         
 
-    # if st.button("close"):
-    #     ex_page = 1
-
 def introduce():
-
     st.markdown("<h1>몇 점 일 까 ?💯</h1>", unsafe_allow_html=True)
     st.markdown("<h4>AI 채점 선생님이 당신을 대신해 채점해 드립니다</h4>", unsafe_allow_html=True)
-
+    st.markdown("<h1>kdkdkdkdk</h1>")
     image_comparison(
     img1="/opt/ml/input/code/fastapi/app/explain_img/solve.jpg",
     img2="/opt/ml/input/code/fastapi/app/explain_img/check.jpg",
@@ -65,10 +61,6 @@ def introduce():
     )
     
 def main():
-    global ex_page
-    # if st.button("사용 설명서"):
-    #      ex_page = 2
-    #      page()
     st.title("몇점일까?")
     st.subheader("평가원 객관식 문제 자동채점 프로그램")
 
