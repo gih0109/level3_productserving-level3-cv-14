@@ -3,7 +3,6 @@ import requests
 import sys
 from stqdm import stqdm
 import io
-from time import sleep
 
 sys.path.append("/opt/ml/input/code/fastapi/app/front")
 from utils import *
@@ -20,14 +19,8 @@ def main():
     # 스트림릿의 선택 창으로 채점할 문제의 종류를 선택하고, 정답지를 불러오는 부분입니다.
     year_choice, test_choice, type_choice = init_value()
     exam_info = year_choice + "_" + test_choice + "_" + type_choice  # ex: 2021_f_a
-    while True:
-        try:
-            response = requests.get(f"http://{backend_server}/answers/{exam_info}")
-            rs = response.json()["answers"]
-            break
-        except:
-            print('Connection refused by the server...')
-            sleep(1)
+    response = requests.get(f"http://{backend_server}/answers/{exam_info}")
+    rs = response.json()["answers"]
     if rs == "No data":
         file = st.file_uploader("정답 데이터가 없습니다, 답안을 등록해주세요", type=["csv"])
         if file:
