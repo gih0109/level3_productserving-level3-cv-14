@@ -52,7 +52,6 @@ def explain(): # 사용 설명서
 def introduce():
     st.markdown("<h1>몇 점 일 까 ?💯</h1>", unsafe_allow_html=True)
     st.markdown("<h4>AI 채점 선생님이 당신을 대신해 채점해 드립니다</h4>", unsafe_allow_html=True)
-    st.markdown("<h1>kdkdkdkdk</h1>")
     image_comparison(
     img1="/opt/ml/input/code/fastapi/app/explain_img/solve.jpg",
     img2="/opt/ml/input/code/fastapi/app/explain_img/check.jpg",
