@@ -1,0 +1,1 @@
+make -j 2 run_app
