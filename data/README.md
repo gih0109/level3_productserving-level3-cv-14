@@ -24,6 +24,8 @@ data hw(available): hand writing 데이터(필기 패치 데이터(10644장) + �
 |---|---|---|---|---|---|
 |1339|1891|1837|1901|1857|1831|
 
+<br/>
+
 ## annotation data
 
 train_v4-1(available): q(question) class 추가(train_v4 data 사용)<br/>
