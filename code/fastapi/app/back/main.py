@@ -20,9 +20,9 @@ from utils import *
 
 # settings
 answer_dir = "/opt/ml/input/code/fastapi/app/answer"
-model_config = "/opt/ml/input/data/models/19/config.py"
-model_weight = "/opt/ml/input/data/models/19/model.pth"
-coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
+model_config = "/opt/ml/input/data/models/29/config.py"
+model_weight = "/opt/ml/input/data/models/29/model.pth"
+# coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
 
 
 app = FastAPI()
@@ -87,16 +87,19 @@ def predict(exam_info: str, file: UploadFile = File(...)):
     answer = get_answers_from_db(exam_info)
     images = convert_from_bytes(file.file._file.read())
     images_np = [np.array(image) for image in images]
-    inference = Inference(
+    # inference = Inference(
+    #     images=images_np,
+    #     exam_info=exam_info,
+    #     coco=coco,
+    #     detector=detector,
+    # )
+    inference = Inference_v2(
         images=images_np,
-        exam_info=exam_info,
-        coco=coco,
         detector=detector,
     )
-    result = inference.make_user_solution(True, True)
+    result, q_bbox = inference.make_user_solution(True, True)
     _score = score(result, answer)
-
-    scoring_img = inference.save_score_img(_score)
+    scoring_img = inference.save_score_img(_score, q_bbox)
     imgByteArr = io.BytesIO()
     scoring_img[0].save(
         imgByteArr, save_all=True, append_images=scoring_img[1:], format="PDF"

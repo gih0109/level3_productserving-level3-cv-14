@@ -7,7 +7,7 @@ import io
 sys.path.append("/opt/ml/input/code/fastapi/app/front")
 from utils import *
 
-backend_server = "49.50.174.162:30002"
+backend_server = "118.67.135.56:30002"
 
 st.set_page_config(layout="wide")
 
@@ -19,7 +19,6 @@ def main():
     # 스트림릿의 선택 창으로 채점할 문제의 종류를 선택하고, 정답지를 불러오는 부분입니다.
     year_choice, test_choice, type_choice = init_value()
     exam_info = year_choice + "_" + test_choice + "_" + type_choice  # ex: 2021_f_a
-    st.write(exam_info)
     response = requests.get(f"http://{backend_server}/answers/{exam_info}")
     rs = response.json()["answers"]
     if rs == "No data":
