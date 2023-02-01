@@ -22,7 +22,7 @@ from utils import *
 answer_dir = "/opt/ml/input/code/fastapi/app/answer"
 model_config = "/opt/ml/input/data/models/19/config.py"
 model_weight = "/opt/ml/input/data/models/19/model.pth"
-coco = COCO("/opt/ml/input/data/annotations/train_v4-1.json")
+coco = COCO("/opt/ml/input/data/annotations/base.json")
 
 
 app = FastAPI()
@@ -93,9 +93,9 @@ def predict(exam_info: str, file: UploadFile = File(...)):
         coco=coco,
         detector=detector,
     )
-    result, q_bbox = inference.make_user_solution(True, True)
+    result = inference.make_user_solution(True, True)
     _score = score(result, answer)
-    scoring_img = inference.save_score_img(_score, q_bbox)
+    scoring_img = inference.save_score_img(_score)
     imgByteArr = io.BytesIO()
     scoring_img[0].save(
         imgByteArr, save_all=True, append_images=scoring_img[1:], format="PDF"
