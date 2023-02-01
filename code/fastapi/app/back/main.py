@@ -22,7 +22,7 @@ from utils import *
 answer_dir = "/opt/ml/input/code/fastapi/app/answer"
 model_config = "/opt/ml/input/data/models/29/config.py"
 model_weight = "/opt/ml/input/data/models/29/model.pth"
-# coco = COCO("/opt/ml/input/data/annotations/train_v1-3.json")
+coco = COCO("/opt/ml/input/data/annotations/train_v4-1.json")
 
 
 app = FastAPI()
@@ -87,14 +87,10 @@ def predict(exam_info: str, file: UploadFile = File(...)):
     answer = get_answers_from_db(exam_info)
     images = convert_from_bytes(file.file._file.read())
     images_np = [np.array(image) for image in images]
-    # inference = Inference(
-    #     images=images_np,
-    #     exam_info=exam_info,
-    #     coco=coco,
-    #     detector=detector,
-    # )
-    inference = Inference_v2(
+    inference = Inference(
         images=images_np,
+        exam_info=exam_info,
+        coco=coco,
         detector=detector,
     )
     result, q_bbox = inference.make_user_solution(True, True)
