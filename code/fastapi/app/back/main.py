@@ -20,8 +20,8 @@ from utils import *
 
 # settings
 answer_dir = "/opt/ml/input/code/fastapi/app/answer"
-model_config = "/opt/ml/input/data/models/29/config.py"
-model_weight = "/opt/ml/input/data/models/29/model.pth"
+model_config = "/opt/ml/input/data/models/19/config.py"
+model_weight = "/opt/ml/input/data/models/19/model.pth"
 coco = COCO("/opt/ml/input/data/annotations/train_v4-1.json")
 
 
