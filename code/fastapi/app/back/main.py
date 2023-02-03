@@ -76,9 +76,6 @@ db = psycopg2.connect(host="118.67.135.56", dbname="postgres", user="postgres", 
 
 
 def get_info_from_db(exam_info):
-    db.cursor().execute('insert into test_db (id, test) values (11, 20);')
-    db.cursor().execute('insert into test_db (id, test) values (12, 20);')
-    db.commit()
     answer = pd.read_sql(f'select "QUESTION_PK", "ANSWER" from "ANSWER_TB" Where "TYPE_PK" like \'%{exam_info}%\';', db)
     question = pd.read_sql(f'select "QUESTION_PK", x, y, w, h, page from "QUESTION_BBOX_TB" Where "TYPE_PK" like \'%{exam_info}%\';', db)
     img_shape = pd.read_sql(f'select "WIDTH", "HEIGHT" from "PAGE_SHAPE" where "TYPE_PK" like \'%{exam_info}%\';', db)
