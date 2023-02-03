@@ -19,17 +19,17 @@ def main():
     # 스트림릿의 선택 창으로 채점할 문제의 종류를 선택하고, 정답지를 불러오는 부분입니다.
     year_choice, test_choice, type_choice = init_value()
     exam_info = year_choice + "_" + test_choice + "_" + type_choice  # ex: 2021_f_a
-    response = requests.get(f"http://{backend_server}/answers/{exam_info}")
-    rs = response.json()["answers"]
-    if rs == "No data":
-        file = st.file_uploader("정답 데이터가 없습니다, 답안을 등록해주세요", type=["csv"])
-        if file:
-            csv_file = file.read()
-            response = requests.post(
-                f"http://{backend_server}/uploadfiles_name/{exam_info}",
-                files={"csv_file": csv_file},
-            )
-            st.write("등록이 완료되었습니다.")
+    # response = requests.get(f"http://{backend_server}/answers/{exam_info}")
+    # rs = response.json()["answers"]
+    # if rs == "No data":
+    #     file = st.file_uploader("정답 데이터가 없습니다, 답안을 등록해주세요", type=["csv"])
+    #     if file:
+    #         csv_file = file.read()
+    #         response = requests.post(
+    #             f"http://{backend_server}/uploadfiles_name/{exam_info}",
+    #             files={"csv_file": csv_file},
+    #         )
+    #         st.write("등록이 완료되었습니다.")
 
     uploaded_file = st.file_uploader("손으로 풀이된 시험지의 pdf파일을 업로드하세요.", type=["pdf"])
 

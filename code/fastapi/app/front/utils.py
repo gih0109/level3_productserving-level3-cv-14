@@ -13,9 +13,9 @@ def init_value():
     test_choice = st.selectbox("채점을 원하시는 시험을 선택해 주세요", test, index=2)
 
     type_ = (
-        ["구분없음"] if int(year_choice) >= 2022 else ["가(A)형", "나(B)형"]
+        ["확률과 통계", "미적분", "기하"] if int(year_choice) >= 2022 else ["가(A)형", "나(B)형"]
     )  # 가(A)형, 나(B)형, 2022학년도부터 구분 없음(n)
-    type_map = {"구분없음": "n", "가(A)형": "a", "나(B)형": "b"}
+    type_map = {"확률과 통계": "p", "미적분": "c", "기하": "g", "가(A)형": "a", "나(B)형": "b"}
     type_choice = st.selectbox("채점을 원하시는 시험의 종류를 선택해 주세요", type_)
 
     return year_choice, test_map[test_choice], type_map[type_choice]
