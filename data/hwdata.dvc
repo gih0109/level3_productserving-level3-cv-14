@@ -1,0 +1,5 @@
+outs:
+- md5: 63110fc01cc0dcb204203f3f2a834a00.dir
+  size: 130753622
+  nfiles: 10662
+  path: hwdata
