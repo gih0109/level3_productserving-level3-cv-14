@@ -9,15 +9,18 @@ from pycocotools.coco import COCO
 from mmdet.apis import init_detector
 import numpy as np
 import sys
+
 # from sqlalchemy.orm import sessionmaker
 # from sqlalchemy import create_engine, Column, String, Integer
 # from sqlalchemy.ext.declarative import declarative_base
-import psycopg2
 
 sys.path.append("/opt/ml/input/code/fastapi/app/back")
 from inference import *
 from utils import *
 
+from database import *
+import uuid
+import os
 
 # settings
 answer_dir = "/opt/ml/input/code/fastapi/app/answer"
@@ -46,7 +49,6 @@ detector = init_detector(model_config, model_weight, device="cuda:0")
 # engine = create_engine("sqlite:///./answer.db")
 # Base.metadata.create_all(bind=engine)
 # SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db = psycopg2.connect(host="118.67.135.56", dbname="postgres", user="postgres", password="postgres", port=30003) # db 연결
 
 
 # @app.post("/uploadfiles_name/{exam_info}")
@@ -75,28 +77,21 @@ db = psycopg2.connect(host="118.67.135.56", dbname="postgres", user="postgres", 
 #         return {"answers": "No data"}
 
 
-def get_info_from_db(exam_info):
-    answer = pd.read_sql(f'select "QUESTION_PK", "ANSWER" from "ANSWER_TB" Where "TYPE_PK" like \'%{exam_info}%\';', db)
-    question = pd.read_sql(f'select "QUESTION_PK", x, y, w, h, page from "QUESTION_BBOX_TB" Where "TYPE_PK" like \'%{exam_info}%\';', db)
-    img_shape = pd.read_sql(f'select "WIDTH", "HEIGHT" from "PAGE_SHAPE" where "TYPE_PK" like \'%{exam_info}%\';', db)
-    answer = {q: a for q, a in zip(answer['QUESTION_PK'], answer['ANSWER'])}
-    q_bbox = [[dict()] for _ in range(max(question['page']))]
-
-    for q, x, y, w, h, page in zip(question['QUESTION_PK'], question['x'], question['y'], question['w'], question['h'], question['page']):
-        q_bbox[page-1][0].update({q: [x, y, w, h]})
-
-    img_shape = [img_shape['WIDTH'][0], img_shape['HEIGHT'][0]]
-
-    # db.close() # 매번 close?
-    return answer, q_bbox, img_shape
-
-
 # 이미지를 불러와서 모델 예측을 수행하는 부분입니다.
 @app.post("/predict/{exam_info}")
 def predict(exam_info: str, file: UploadFile = File(...)):
     answer, q_bbox, img_shape = get_info_from_db(exam_info)
     images = convert_from_bytes(file.file._file.read())
     images_np = [np.array(image) for image in images]
+    log_name = uuid.uuid1()
+
+    if not os.path.isdir(f"/opt/ml/input/code/fastapi/app/log/{log_name}"):
+        os.mkdir(f"/opt/ml/input/code/fastapi/app/log/{log_name}")
+
+    for idx in range(len(images_np)):
+        Image.fromarray(images_np[idx]).save(
+            f"/opt/ml/input/code/fastapi/app/log/{log_name}/{idx}_original.jpg", "JPEG"
+        )
 
     inference = Inference_v2(
         images=images_np,
@@ -104,9 +99,10 @@ def predict(exam_info: str, file: UploadFile = File(...)):
         q_bbox=q_bbox,
         answer=answer,
         img_shape=img_shape,
+        log_name=log_name,
     )
     scoring_img, log_pred = inference.main()
-    # print(log_pred)
+    insert_log(log_pred, exam_info, log_name)
 
     imgByteArr = io.BytesIO()
     scoring_img[0].save(
