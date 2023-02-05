@@ -298,14 +298,14 @@ def save_score_img(self, scoring_result):
 
 
 class Inference_v2:
-    def __init__(self, images, detector, q_bbox, answer, img_shape, log_name):
+    def __init__(self, images, detector, q_bbox, answer, img_shape, time):
         self.images = images
         self.detector = detector
         self.q_bbox = q_bbox
         self.answer = answer
         self.inference_detector = inference_detector
         self.origin_img_shape = img_shape
-        self.log_name = log_name
+        self.time = time
 
     def ltrb2xywh(self, bbox):
         return [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]]
@@ -354,7 +354,7 @@ class Inference_v2:
         )
         cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 3)
         cv2.imwrite(
-            f"/opt/ml/input/code/fastapi/app/log/{self.log_name}/{img_path}_predict.jpg",
+            f"/opt/ml/input/code/fastapi/app/log/{self.time}/{img_path}_predict.jpg",
             img,
         )
 
@@ -405,7 +405,6 @@ class Inference_v2:
             for i in range(len(predict)):
                 predict[i] = self.ltrb2xywh(predict[i][:4]) + predict[i][4:]
             question = self.q_bbox[idx][0]
-
             for q in question:
                 tmp = []
                 for p in predict:

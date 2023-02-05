@@ -19,8 +19,8 @@ from inference import *
 from utils import *
 
 from database import *
-import uuid
 import os
+from datetime import datetime
 
 # settings
 answer_dir = "/opt/ml/input/code/fastapi/app/answer"
@@ -83,14 +83,14 @@ def predict(exam_info: str, file: UploadFile = File(...)):
     answer, q_bbox, img_shape = get_info_from_db(exam_info)
     images = convert_from_bytes(file.file._file.read())
     images_np = [np.array(image) for image in images]
-    log_name = uuid.uuid1()
+    time = str(datetime.now()).replace(" ", "_")
 
-    if not os.path.isdir(f"/opt/ml/input/code/fastapi/app/log/{log_name}"):
-        os.mkdir(f"/opt/ml/input/code/fastapi/app/log/{log_name}")
+    if not os.path.isdir(f"/opt/ml/input/code/fastapi/app/log/{time}"):
+        os.mkdir(f"/opt/ml/input/code/fastapi/app/log/{time}")
 
     for idx in range(len(images_np)):
         Image.fromarray(images_np[idx]).save(
-            f"/opt/ml/input/code/fastapi/app/log/{log_name}/{idx}_original.jpg", "JPEG"
+            f"/opt/ml/input/code/fastapi/app/log/{time}/{idx}_original.jpg", "JPEG"
         )
 
     inference = Inference_v2(
@@ -99,10 +99,10 @@ def predict(exam_info: str, file: UploadFile = File(...)):
         q_bbox=q_bbox,
         answer=answer,
         img_shape=img_shape,
-        log_name=log_name,
+        time=time,
     )
     scoring_img, log_pred = inference.main()
-    insert_log(log_pred, exam_info, log_name)
+    insert_log(log_pred, exam_info, time)
 
     imgByteArr = io.BytesIO()
     scoring_img[0].save(
