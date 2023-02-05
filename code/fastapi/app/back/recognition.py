@@ -13,9 +13,6 @@ from clova_ocr.utils import AttnLabelConverter
 from clova_ocr.model import Model
 
 
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device
-
 """
 주의:
     이 코드는 TPS-ResNet-BiLSTM-Attn 모델 용으로 작성된 코드입니다.
@@ -45,10 +42,13 @@ def load_ocr_model(img_scale: tuple = (32, 100), # (height, width)
     """
     
     assert save_model is not None
-    assert Prediction == 'Attn'
+    assert Transformation == 'TPS' and FeatureExtraction == 'ResNet'
+    assert SequenceModeling == 'BiLSTM' and Prediction == 'Attn'
     
     converter = AttnLabelConverter(character)
     num_class = len(converter.character)
+
+    print(f'loading pretrained model from {save_model}')
 
     model = Model(Transformation, 
                   FeatureExtraction, 
@@ -63,8 +63,7 @@ def load_ocr_model(img_scale: tuple = (32, 100), # (height, width)
                   batch_max_length)
     model = torch.nn.DataParallel(model).to(device)
     # load model
-    print(f'loading pretrained model from {save_model}')
-    model.load_state_dict(torch.load(save_model, map_location=device)) # strict ???
+    model.load_state_dict(torch.load(save_model, map_location=device))
     print('model load sucessifully')
 
     return model
@@ -118,23 +117,13 @@ def text_recognition(model = None,
             length_for_pred = torch.IntTensor([batch_max_length] * batch_size).to(device)
             text_for_pred = torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
 
-
             preds = model(image, text_for_pred, is_train=False)
 
             # select max probabilty (greedy decoding) then decode index to character
             _, preds_index = preds.max(2)
             preds_str = converter.decode(preds_index, length_for_pred)
 
-
-            # log = open(f'./log_demo_result.txt', 'a')
-            dashed_line = '-' * 80
-            head = f'{"image_path":25s}\t{"predicted_labels":25s}\tconfidence score'
-            
-            # print(f'{dashed_line}\n{head}\n{dashed_line}')
-            # log.write(f'{dashed_line}\n{head}\n{dashed_line}\n')
-
             result = {}
-
             preds_prob = F.softmax(preds, dim=2)
             preds_max_prob, _ = preds_prob.max(dim=2)
             for img_name, pred, pred_max_prob in zip(image_path_list, preds_str, preds_max_prob):
@@ -144,11 +133,8 @@ def text_recognition(model = None,
                 pred_max_prob = pred_max_prob[:pred_EOS]
 
                 # calculate confidence score (= multiply of pred_max_prob)
-                confidence_score = pred_max_prob.cumprod(dim=0)[-1]
+                # confidence_score = pred_max_prob.cumprod(dim=0)[-1]
 
                 result[img_name] = pred
-                # print(f'{img_name[-5:]:25s}\t{pred:25s}\t{confidence_score:0.4f}')
-            #     log.write(f'{img_name:25s}\t{pred:25s}\t{confidence_score:0.4f}\n')
 
-            # log.close()
-            return result
+        return result
