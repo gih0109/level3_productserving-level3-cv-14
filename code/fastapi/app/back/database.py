@@ -82,11 +82,11 @@ def insert_log(log_pred, exam_info, time):
     )
 
     for p in log_pred:
-        x_pred, y_pred, w_pred, h_pred, confidence, question_num, pred = p
+        x_pred, y_pred, w_pred, h_pred, confidence, pred, question = p
         db.cursor().execute(
             f"""
             insert into log (type, question, infer_date, x_pred, y_pred, w_pred, h_pred, confidence, class_pred) 
-            values (\'{exam_info}\', {question_num}, \'{time}\', {x_pred}, {y_pred}, {w_pred}, {h_pred}, {confidence}, {pred});
+            values (\'{exam_info}\', {question}, \'{time}\', {x_pred}, {y_pred}, {w_pred}, {h_pred}, {confidence}, {pred});
             """
         )
         db.commit()
