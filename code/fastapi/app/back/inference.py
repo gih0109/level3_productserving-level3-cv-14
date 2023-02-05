@@ -310,7 +310,7 @@ class Inference_v2:
     def ltrb2xywh(self, bbox):
         return [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]]
 
-    def get_predict(self, img, box_threshold=0.01):
+    def get_predict(self, img, box_threshold=0.1):
         inference = self.inference_detector(self.detector, img)
         predict = []
         for label, bboxes in enumerate(inference):
