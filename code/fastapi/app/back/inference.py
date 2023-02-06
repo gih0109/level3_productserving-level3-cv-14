@@ -494,7 +494,7 @@ class Inference_v2:
                         ):
                             os.makedirs("/opt/ml/input/code/fastapi/app/back/tmp")
                         cv2.imwrite(
-                            f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg",
+                            f"/opt/ml/input/code/fastapi/app/back/tmp/{q}.jpg",
                             img[y - 10 : (y + h) + 10, x - 10 : (x + w) + 10, :],
                         )
                         ocr_result = text_recognition(
