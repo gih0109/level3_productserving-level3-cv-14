@@ -511,7 +511,6 @@ class Inference_v2:
                         except:
                             pass
                         os.system("rm /opt/ml/input/code/fastapi/app/back/tmp/*")
-        print(result)
         tmp = [i for i in range(1, 31)]
         for x in result:
             if x in tmp:
