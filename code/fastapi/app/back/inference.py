@@ -489,24 +489,28 @@ class Inference_v2:
                         candidates.sort(key=lambda x: x[4], reverse=True)
                     if candidates:
                         x, y, w, h = list(map(int, candidates[0]))[:4]
+                        if not os.path.exists(
+                            "/opt/ml/input/code/fastapi/app/back/tmp"
+                        ):
+                            os.makedirs("/opt/ml/input/code/fastapi/app/back/tmp")
                         cv2.imwrite(
                             f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg",
                             img[y - 10 : (y + h) + 10, x - 10 : (x + w) + 10, :],
                         )
                         ocr_result = text_recognition(
                             model=self.ocr_model,
-                            img_folder="/opt/ml/input/code/fastapi/app/tmp",
+                            img_folder="/opt/ml/input/code/fastapi/app/back/tmp",
                             device="cuda:0",
                         )
                         try:
                             result[q] = int(
                                 ocr_result[
-                                    f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg"
+                                    f"/opt/ml/input/code/fastapi/app/back/tmp/{q}.jpg"
                                 ]
                             )
                         except:
                             pass
-                        os.system("rm /opt/ml/input/code/fastapi/app/tmp/*")
+                        os.system("rm /opt/ml/input/code/fastapi/app/back/tmp/*")
         print(result)
         tmp = [i for i in range(1, 31)]
         for x in result:
