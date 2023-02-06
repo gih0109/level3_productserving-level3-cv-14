@@ -2,7 +2,9 @@ from mmdet.apis import inference_detector
 from PIL import Image
 from copy import deepcopy
 from utils import *
+from recognition import *
 import cv2
+import os
 
 
 class Inference:
@@ -48,7 +50,7 @@ class Inference:
         anns_dict = {q["category_id"]: self.xywh2ltrb(q["bbox"]) for q in questions}
         return anns_dict
 
-    def get_predict(self, img, box_threshold=0.3):
+    def get_predict(self, img, box_threshold=0.1):
         """_summary_
 
         Args:
@@ -298,7 +300,7 @@ def save_score_img(self, scoring_result):
 
 
 class Inference_v2:
-    def __init__(self, images, detector, q_bbox, answer, img_shape, time):
+    def __init__(self, images, detector, q_bbox, answer, img_shape, time, ocr_model):
         self.images = images
         self.detector = detector
         self.q_bbox = q_bbox
@@ -306,6 +308,7 @@ class Inference_v2:
         self.inference_detector = inference_detector
         self.origin_img_shape = img_shape
         self.time = time
+        self.ocr_model = ocr_model
 
     def ltrb2xywh(self, bbox):
         return [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]]
@@ -395,6 +398,9 @@ class Inference_v2:
             score_img.append(background)
         return score_img
 
+    def is_in(self, box, x_min, y_min):  # 좌측 하단 점이 box 안에 포함되는지?
+        return box[0] < x_min < box[0] + box[2] and box[1] < y_min < box[1] + box[3]
+
     def main(self):
         images = deepcopy(self.images)
         result = dict()
@@ -405,10 +411,12 @@ class Inference_v2:
             for i in range(len(predict)):
                 predict[i] = self.ltrb2xywh(predict[i][:4]) + predict[i][4:]
             question = self.q_bbox[idx][0]
-            for q in question:
+            resize_question = {}
+            for q, v in question.items():
+                resize_q = self.resize_box(question[q], img.shape)
+                resize_question[q] = resize_q
                 tmp = []
                 for p in predict:
-                    resize_q = self.resize_box(question[q], img.shape)
                     if self.overlap(resize_q, p[:4]):
                         p.append(q)
                         tmp.append(p)
@@ -418,7 +426,83 @@ class Inference_v2:
                     result[q] = pred[-2]
                     log_pred.append(pred)
                     self.save_predict(img, idx, pred)
+                else:
+                    result[q] = -1
 
+            # 시험지의 좌측, 우측 을 나누는 코드
+            h, w, c = img.shape
+            middle_line = w / 2
+            left_questions = []
+            right_questions = []
+            for q in resize_question:
+                if resize_question[q][0] < middle_line:  # top-left의 x좌표가 중앙선보다 작으면 왼쪽에
+                    left_questions.append(resize_question[q])
+                else:
+                    right_questions.append(resize_question[q])
+            # y좌표 기준으로 정렬
+            left_questions.sort(key=lambda x: x[1])
+            right_questions.sort(key=lambda x: x[2])
+
+            areas = []  # 문제 구역 나눔
+            for i, box in enumerate(left_questions):
+                if i == (len(left_questions) - 1):
+                    areas.append(
+                        [0, box[1] + box[3], middle_line, h - (box[1] + box[3])]
+                    )
+                else:
+                    areas.append(
+                        [
+                            0,
+                            box[1] + box[3],
+                            middle_line,
+                            left_questions[i + 1][1] - (box[1] + box[3]),
+                        ]
+                    )
+            for i, box in enumerate(right_questions):
+                if i == (len(right_questions) - 1):
+                    areas.append(
+                        [
+                            middle_line,
+                            box[1] + box[3],
+                            middle_line,
+                            h - (box[1] + box[3]),
+                        ]
+                    )
+                else:
+                    areas.append(
+                        [
+                            middle_line,
+                            box[1] + box[3],
+                            middle_line,
+                            right_questions[i + 1][1] - (box[1] + box[3]),
+                        ]
+                    )
+
+            for i, q in enumerate(resize_question):
+                if result[q] == 6 or result[q] == -1:
+                    candidates = [
+                        pred
+                        for pred in predict
+                        if self.is_in(areas[i], pred[0], pred[1] + pred[3])
+                    ]  # 미리 정해진 구역에 있는 예측값 모두 저장
+                    if len(candidates) > 1:
+                        candidates.sort(key=lambda x: x[4], reverse=True)
+                    if candidates:
+                        x, y, w, h = list(map(int, candidates[0]))[:4]
+                        cv2.imwrite(
+                            f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg",
+                            img[y - 10 : (y + h) + 10, x - 10 : (x + w) + 10, :],
+                        )
+                        ocr_result = text_recognition(
+                            model=self.ocr_model,
+                            img_folder="/opt/ml/input/code/fastapi/app/tmp",
+                            device="cuda:0",
+                        )
+                        result[q] = int(
+                            ocr_result[f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg"]
+                        )
+                        # os.system("rm /opt/ml/input/code/fastapi/app/tmp/*")
+        print(result)
         tmp = [i for i in range(1, 31)]
         for x in result:
             if x in tmp:
