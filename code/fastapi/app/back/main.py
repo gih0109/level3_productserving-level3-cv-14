@@ -34,7 +34,7 @@ app = FastAPI()
 # 모델을 load 하는 부분입니다.
 detector = init_detector(model_config, model_weight, device="cuda:0")
 ocr_model = load_ocr_model(
-    save_model="/opt/ml/input/code/fastapi/app/back/best_accuracy.pth", device="cuda:0"
+    save_model="/opt/ml/input/data/models/recog_model.pth", device="cuda:0"
 )
 # 요청하는 시험에 대한 정답을 가져오는 부분입니다.
 # TODO: 지훈님께서 만들어준 DB와 연결이 필요합니다.
