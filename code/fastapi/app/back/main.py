@@ -17,15 +17,15 @@ import sys
 sys.path.append("/opt/ml/input/code/fastapi/app/back")
 from inference import *
 from utils import *
-
+from recognition import *
 from database import *
 import os
 from datetime import datetime
 
 # settings
 # answer_dir = "/opt/ml/input/code/fastapi/app/answer"
-model_config = "/opt/ml/input/data/models/19/config.py"
-model_weight = "/opt/ml/input/data/models/19/model.pth"
+model_config = "/opt/ml/input/data/models/100/detection_config.py"
+model_weight = "/opt/ml/input/data/models/100/best_bbox_mAP_epoch_26.pth"
 # coco = COCO("/opt/ml/input/data/annotations/base.json")
 
 
@@ -33,7 +33,9 @@ app = FastAPI()
 
 # 모델을 load 하는 부분입니다.
 detector = init_detector(model_config, model_weight, device="cuda:0")
-
+ocr_model = load_ocr_model(
+    save_model="/opt/ml/input/data/models/recog_model.pth", device="cuda:0"
+)
 # 요청하는 시험에 대한 정답을 가져오는 부분입니다.
 # TODO: 지훈님께서 만들어준 DB와 연결이 필요합니다.
 # Base = declarative_base()
@@ -102,6 +104,7 @@ def predict(exam_info: str, file: UploadFile = File(...)):
         answer=answer,
         img_shape=img_shape,
         time=infer_time,
+        ocr_model=ocr_model,
     )
     scoring_img, log_pred = inference.main()
     insert_log(log_pred, exam_info, infer_time)
