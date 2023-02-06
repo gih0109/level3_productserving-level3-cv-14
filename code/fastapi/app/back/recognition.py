@@ -123,6 +123,7 @@ def text_recognition(
     # predict
     model.eval()
     with torch.no_grad():
+        result = dict()
         for image_tensors, image_path_list in ocr_data_loader:
             batch_size = image_tensors.size(0)
             image = image_tensors.to(device)
