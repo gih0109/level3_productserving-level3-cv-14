@@ -23,10 +23,10 @@ import os
 from datetime import datetime
 
 # settings
-answer_dir = "/opt/ml/input/code/fastapi/app/answer"
+# answer_dir = "/opt/ml/input/code/fastapi/app/answer"
 model_config = "/opt/ml/input/data/models/19/config.py"
 model_weight = "/opt/ml/input/data/models/19/model.pth"
-coco = COCO("/opt/ml/input/data/annotations/base.json")
+# coco = COCO("/opt/ml/input/data/annotations/base.json")
 
 
 app = FastAPI()
@@ -81,16 +81,18 @@ detector = init_detector(model_config, model_weight, device="cuda:0")
 @app.post("/predict/{exam_info}")
 def predict(exam_info: str, file: UploadFile = File(...)):
     answer, q_bbox, img_shape = get_info_from_db(exam_info)
-    images = convert_from_bytes(file.file._file.read())
-    images_np = [np.array(image) for image in images]
-    time = str(datetime.now()).replace(" ", "_")
+    images = convert_from_bytes(file.file._file.read(), dpi=100)
 
-    if not os.path.isdir(f"/opt/ml/input/code/fastapi/app/log/{time}"):
-        os.mkdir(f"/opt/ml/input/code/fastapi/app/log/{time}")
+    images_np = [np.array(image) for image in images]
+    infer_time = str(datetime.now()).replace(" ", "_")
+
+    if not os.path.isdir(f"/opt/ml/input/code/fastapi/app/log/{infer_time}"):
+        os.mkdir(f"/opt/ml/input/code/fastapi/app/log/{infer_time}")
 
     for idx in range(len(images_np)):
         Image.fromarray(images_np[idx]).save(
-            f"/opt/ml/input/code/fastapi/app/log/{time}/{idx}_original.jpg", "JPEG"
+            f"/opt/ml/input/code/fastapi/app/log/{infer_time}/{idx}_original.jpg",
+            "JPEG",
         )
 
     inference = Inference_v2(
@@ -99,13 +101,14 @@ def predict(exam_info: str, file: UploadFile = File(...)):
         q_bbox=q_bbox,
         answer=answer,
         img_shape=img_shape,
-        time=time,
+        time=infer_time,
     )
     scoring_img, log_pred = inference.main()
-    insert_log(log_pred, exam_info, time)
+    insert_log(log_pred, exam_info, infer_time)
 
     imgByteArr = io.BytesIO()
     scoring_img[0].save(
         imgByteArr, save_all=True, append_images=scoring_img[1:], format="PDF"
     )
+
     return Response(imgByteArr.getvalue(), media_type="application/pdf")
