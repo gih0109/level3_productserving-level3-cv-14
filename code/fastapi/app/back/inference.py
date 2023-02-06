@@ -498,10 +498,15 @@ class Inference_v2:
                             img_folder="/opt/ml/input/code/fastapi/app/tmp",
                             device="cuda:0",
                         )
-                        result[q] = int(
-                            ocr_result[f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg"]
-                        )
-                        # os.system("rm /opt/ml/input/code/fastapi/app/tmp/*")
+                        try:
+                            result[q] = int(
+                                ocr_result[
+                                    f"/opt/ml/input/code/fastapi/app/tmp/{q}.jpg"
+                                ]
+                            )
+                        except:
+                            pass
+                        os.system("rm /opt/ml/input/code/fastapi/app/tmp/*")
         print(result)
         tmp = [i for i in range(1, 31)]
         for x in result:
