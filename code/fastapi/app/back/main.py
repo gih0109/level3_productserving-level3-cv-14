@@ -31,6 +31,7 @@ ocr_model = load_ocr_model(
     save_model="/opt/ml/input/data/models/recog_model.pth", device="cuda:0"
 )
 
+
 # Load Ann, Image, Predict
 @app.post("/predict/{exam_info}")
 def predict(exam_info: str, file: UploadFile = File(...)):
@@ -48,6 +49,11 @@ def predict(exam_info: str, file: UploadFile = File(...)):
     for idx in range(len(images_np)):
         Image.fromarray(images_np[idx]).save(
             f"/opt/ml/input/code/fastapi/app/log/{infer_time}/{idx}_original.jpg",
+            "JPEG",
+        )
+    for idx in range(len(images_np)):
+        Image.fromarray(images_np[idx]).save(
+            f"/opt/ml/input/code/fastapi/app/log/{infer_time}/{idx}_predict.jpg",
             "JPEG",
         )
 

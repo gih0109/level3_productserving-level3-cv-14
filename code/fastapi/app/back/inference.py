@@ -572,6 +572,8 @@ class Inference_v2:
                             log_pred.append(candidates[0])
                             log_pred.sort(key=lambda x: x[6])
                         candidates[0][5] = result[q]
+                        pred = candidates[0] + [result[q]]
+                        self.save_predict(img, idx, pred)
 
         # 채점되지 않은 경우 -1로 수정
         tmp = [i for i in range(1, 31)]
