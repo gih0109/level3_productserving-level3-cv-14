@@ -98,21 +98,6 @@ def text_recognition(
     assert model is not None
     assert img_array is not None
 
-    # prepare data. two demo images from https://github.com/bgshih/crnn#run-demo
-    # AlignCollate_demo = AlignCollate(
-    #     imgH=img_scale[0], imgW=img_scale[1], keep_ratio_with_pad=keep_ratio_with_pad
-    # )
-    # ocr_data = RawDataset(
-    #     root=img_folder, img_scale=img_scale, rgb=rgb
-    # )  # use RawDataset
-    # ocr_data_loader = torch.utils.data.DataLoader(
-    #     ocr_data,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     num_workers=int(workers),
-    #     collate_fn=AlignCollate_demo,
-    #     pin_memory=True,
-    # )
     resize = transforms.Resize((img_scale[0], img_scale[1]))
     converter = AttnLabelConverter(character)
 

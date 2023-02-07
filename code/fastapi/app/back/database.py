@@ -7,13 +7,6 @@ import psycopg2
 db_secrets_path = "/opt/ml/input/code/fastapi/app/back/db_secrets.json"
 with open(db_secrets_path, "r") as f:
     db_secrets = json.load(f)
-# db = psycopg2.connect(
-#     host=db_secrets["DB"]["host"],
-#     dbname=db_secrets["DB"]["dbname"],
-#     user=db_secrets["DB"]["user"],
-#     password=db_secrets["DB"]["password"],
-#     port=db_secrets["DB"]["port"],
-# )
 
 
 def get_info_from_db(exam_info):
