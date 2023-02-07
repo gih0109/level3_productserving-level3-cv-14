@@ -510,6 +510,11 @@ class Inference_v2:
                             )
                         except:
                             pass
+                        if len(candidates[0]) != 7:
+                            candidates[0].append(q)
+                            log_pred.append(candidates[0])
+                            log_pred.sort(key=lambda x: x[6])
+                        candidates[0][5] = result[q]
                         os.system("rm /opt/ml/input/code/fastapi/app/back/tmp/*")
         tmp = [i for i in range(1, 31)]
         for x in result:
