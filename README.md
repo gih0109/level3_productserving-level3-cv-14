@@ -44,7 +44,7 @@
 
 ## <br/>🧤 Flow Chart
 ***
-<img src="/opt/ml/input/Readme-image/model_pipline.jpg" >
+<img src="./Readme-image/model_pipline.jpg" >
 
 - input 
     - 학생들이 풀이한 시험지 pdf파일
@@ -57,7 +57,7 @@
     - DB에 저장 된 정답과 비교 후 채점 진행
 ## <br/>🚩 Demo Page Structure
 ***
-<img src="/opt/ml/input/Readme-image/serving_img.jpg" >
+<img src="./Readme-image/serving_img.jpg" >
 
 - Frontend - Streamlit(Html,CSS)
 - Backend - FastAPI 
