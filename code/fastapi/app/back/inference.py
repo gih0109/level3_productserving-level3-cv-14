@@ -281,7 +281,7 @@ class Inference_v2:
         images: List[np.array],
         detector: nn.Module,
         q_bbox: List[Dict],
-        answer: Dict[int:int],
+        answer: Dict,
         img_shape: List[int],
         time: str,
         ocr_model: nn.Module,
@@ -292,7 +292,7 @@ class Inference_v2:
             images (List[np.array]): numpy array의 list
             detector (nn.Module): mmdetection의 init_detector
             q_bbox (List[Dict]): db에서 불러온 문제 박스의 annotation 정보
-            answer (_type_): db에서 불러온 시험지 정답
+            answer (Dict): db에서 불러온 시험지 정답
             img_shape (List[int]): image shape
             time (str): 객체 생성 시간
             ocr_model (nn.Module): recognition.py의 load_ocr_model
@@ -317,7 +317,7 @@ class Inference_v2:
         """
         return [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]]
 
-    def get_predict(self, img: np.array, box_threshold: float = 0.1) -> np.array:
+    def get_predict(self, img: np.array, box_threshold: float = 0.1) -> list:
         """detection 모델 예측
 
         Args:
@@ -325,7 +325,7 @@ class Inference_v2:
             box_threshold (float): 예측된 box들을 걸러낼 mAP threshold. Defaults to 0.1.
 
         Returns:
-            predict (np.array): detection 모델의 예측 결과 (bbox 좌표, confidence score)
+            predict (list): detection 모델의 예측 결과 (bbox 좌표, confidence score)
         """
         inference = self.inference_detector(self.detector, img)
         predict = []
@@ -355,7 +355,7 @@ class Inference_v2:
         """변경된 이미지 사이즈에 맞춰서 annotation 좌표 변환
 
         Args:
-            bbox (list): DB에서 불러온 annotation 좌표 (w: 2339, h: 3009 기준)
+            bbox (list): DB에서 불러온 annotation 좌표 (w: 2339, h: 3309 기준)
             img_shape (list): 현재 예측을 수행하려 하는 이미지 크기 (height, width)
 
         Returns:
@@ -372,13 +372,13 @@ class Inference_v2:
         ]
         return bbox
 
-    def save_predict(self, img: np.array, img_path: str, bbox: list):
+    def save_predict(self, img: np.array, img_path: int, bbox: list):
         """예측된 결과 로깅 (이미지에 파란색 bbox, 예측 클래스, confidence score 합성)
 
         Args:
             img (np.array): 예측 결과를 위한
             img_path (str): page 수
-            bbox (list): 모델 예측 결과 (x,y,w,h,confidence score, class)
+            bbox (list): 모델 예측 결과 (x, y, w, h, confidence score, class)
         """
         x, y, w, h = map(int, bbox[:4])
         confidence = bbox[4]
@@ -398,7 +398,7 @@ class Inference_v2:
             img,
         )
 
-    def save_score_img(self, scoring_result: dict) -> list(Image):
+    def save_score_img(self, scoring_result: list) -> List[Image.Image]:
         """채점된 이미지를 만드는 함수
 
         Args:
@@ -406,7 +406,7 @@ class Inference_v2:
             scoring_result(dict): 채점 결과
 
         Returns:
-            score_img(list(Image)): 빨간색 o, x가 합성된 채점된 이미지
+            score_img(list(PIL.Image.Image)): 빨간색 o, x가 합성된 채점된 이미지
         """
         # 채점된 이미지를 만들기 위해 o, x 이미지를 불러오는 부분입니다.
         o_image = Image.open("/opt/ml/input/code/fastapi/app/scoring_image/correct.png")
@@ -460,7 +460,7 @@ class Inference_v2:
         """주어진 이미지에 대한 모델 예측, 채점 결과(이미지)를 만드는 함수
 
         Returns:
-            scoring_img list(Image), log_pred list: 채점이 완료된 이미지, DB에 로깅하기 위한 예측 결과(좌표, score, 예측결과)
+            scoring_img list(Image), log_pred(list): 채점이 완료된 이미지, DB에 로깅하기 위한 예측 결과(좌표, score, 예측결과)
         """
         images = deepcopy(self.images)
         result = dict()
