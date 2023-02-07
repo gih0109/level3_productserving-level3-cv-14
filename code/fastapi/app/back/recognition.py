@@ -1,12 +1,9 @@
-import os
-
-import string
-import argparse
-
 import torch
 import torch.backends.cudnn as cudnn
 import torch.utils.data
 import torch.nn.functional as F
+import torchvision.transforms as transforms
+import numpy as np
 
 from clova_ocr.dataset import RawDataset, AlignCollate
 from clova_ocr.utils import AttnLabelConverter
@@ -17,6 +14,8 @@ from clova_ocr.model import Model
 주의:
     이 코드는 TPS-ResNet-BiLSTM-Attn 모델 용으로 작성된 코드입니다.
 """
+
+to_tensor = transforms.ToTensor()
 
 # load text recognition model funtion
 def load_ocr_model(
@@ -75,13 +74,10 @@ def load_ocr_model(
 
 def text_recognition(
     model=None,
-    img_folder: str = None,
+    img_array: np.array = None,
     img_scale: tuple = (32, 100),  # (height, width)
-    rgb: bool = False,
     batch_size: int = 192,
     batch_max_length: int = 25,
-    workers: int = 4,
-    keep_ratio_with_pad: bool = False,
     character: str = "0123456789abcdefghijklmnopqrstuvwxyz",
     device: str = "cpu",
 ) -> dict:
@@ -100,60 +96,57 @@ def text_recognition(
     """
 
     assert model is not None
-    assert img_folder is not None
+    assert img_array is not None
 
     # prepare data. two demo images from https://github.com/bgshih/crnn#run-demo
-    AlignCollate_demo = AlignCollate(
-        imgH=img_scale[0], imgW=img_scale[1], keep_ratio_with_pad=keep_ratio_with_pad
-    )
-    ocr_data = RawDataset(
-        root=img_folder, img_scale=img_scale, rgb=rgb
-    )  # use RawDataset
-    ocr_data_loader = torch.utils.data.DataLoader(
-        ocr_data,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=int(workers),
-        collate_fn=AlignCollate_demo,
-        pin_memory=True,
-    )
-
+    # AlignCollate_demo = AlignCollate(
+    #     imgH=img_scale[0], imgW=img_scale[1], keep_ratio_with_pad=keep_ratio_with_pad
+    # )
+    # ocr_data = RawDataset(
+    #     root=img_folder, img_scale=img_scale, rgb=rgb
+    # )  # use RawDataset
+    # ocr_data_loader = torch.utils.data.DataLoader(
+    #     ocr_data,
+    #     batch_size=batch_size,
+    #     shuffle=False,
+    #     num_workers=int(workers),
+    #     collate_fn=AlignCollate_demo,
+    #     pin_memory=True,
+    # )
+    resize = transforms.Resize((img_scale[0], img_scale[1]))
     converter = AttnLabelConverter(character)
 
     # predict
     model.eval()
     with torch.no_grad():
-        result = dict()
-        for image_tensors, image_path_list in ocr_data_loader:
-            batch_size = image_tensors.size(0)
-            image = image_tensors.to(device)
-            # For max length prediction
-            length_for_pred = torch.IntTensor([batch_max_length] * batch_size).to(
-                device
-            )
-            text_for_pred = (
-                torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
-            )
+        img_tensor = to_tensor(img_array)
+        img_tensor = resize(img_tensor)
+        img_tensor_gray = transforms.functional.rgb_to_grayscale(img_tensor)
+        img_tensor_gray.sub_(0.5).div_(0.5)
+        image_tensor = torch.cat([img_tensor_gray.unsqueeze(0)], 0)
+        image = image_tensor.to(device)
 
-            preds = model(image, text_for_pred, is_train=False)
+        # for image_tensors, image_path_list in ocr_data_loader:
+        batch_size = image_tensor.size(0)
+        image = image_tensor.to(device)
+        # For max length prediction
+        length_for_pred = torch.IntTensor([batch_max_length] * batch_size).to(device)
+        text_for_pred = (
+            torch.LongTensor(batch_size, batch_max_length + 1).fill_(0).to(device)
+        )
 
-            # select max probabilty (greedy decoding) then decode index to character
-            _, preds_index = preds.max(2)
-            preds_str = converter.decode(preds_index, length_for_pred)
+        pred = model(image, text_for_pred, is_train=False)
 
-            preds_prob = F.softmax(preds, dim=2)
-            preds_max_prob, _ = preds_prob.max(dim=2)
-            for img_name, pred, pred_max_prob in zip(
-                image_path_list, preds_str, preds_max_prob
-            ):
-                # if 'Attn' in Prediction:
-                pred_EOS = pred.find("[s]")
-                pred = pred[:pred_EOS]  # prune after "end of sentence" token ([s])
-                pred_max_prob = pred_max_prob[:pred_EOS]
+        # select max probabilty (greedy decoding) then decode index to character
+        _, pred_index = pred.max(2)
+        pred_str = converter.decode(pred_index, length_for_pred)[0]
 
-                # calculate confidence score (= multiply of pred_max_prob)
-                # confidence_score = pred_max_prob.cumprod(dim=0)[-1]
+        pred_prob = F.softmax(pred, dim=2)
+        pred_max_prob, _ = pred_prob.max(dim=2)
 
-                result[img_name] = pred
+        # if 'Attn' in Prediction:
+        pred_EOS = pred_str.find("[s]")
+        pred = pred_str[:pred_EOS]  # prune after "end of sentence" token ([s])
+        pred_max_prob = pred_max_prob[:pred_EOS]
 
-        return result
+        return pred
