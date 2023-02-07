@@ -60,7 +60,7 @@
 
 ## <br/>🚩 Demo Page Structure
 
-<img src="./Readme-image/serving_img.jpg" >
+
 
 - Frontend - Streamlit(Html,CSS)
 - Backend - FastAPI 
