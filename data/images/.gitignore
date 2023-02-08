@@ -4,3 +4,6 @@
 /train_v4-2
 /t_v4-2
 /v_v4-2
+/train
+/val
+/mnist_ocr
