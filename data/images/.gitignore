@@ -7,5 +7,10 @@
 /train
 /val
 /mnist_ocr
+<<<<<<< HEAD
 /config.py
 /test_v2
+=======
+/t_v5
+/v_v5
+>>>>>>> 1107c4b8c449cee3d25bda0fd9266563e231bd76
