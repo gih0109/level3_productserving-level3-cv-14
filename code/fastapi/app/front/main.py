@@ -107,7 +107,7 @@ def home():
             img1="/opt/ml/input/code/fastapi/app/front/explain_img/solve.jpg",
             img2="/opt/ml/input/code/fastapi/app/front/explain_img/check.jpg",
             label1="제출된 시험지",
-            label2="Ai채점 결과",
+            label2="AI 채점 결과",
         )
     with empty2:
         st.empty()
@@ -235,7 +235,7 @@ def main():
     st.markdown("<hr>", unsafe_allow_html=True)
     # st.markdown('<p class="main_use">평가원 객관식 문제 자동채점 프로그램</p>', unsafe_allow_html=True)
     # st.title("몇점일까?")
-    st.subheader("평가원 객관식 문제 자동채점 프로그램")
+    st.subheader("평가원 문제 자동채점 프로그램")
     # 스트림릿의 선택 창으로 채점할 문제의 종류를 선택하고, 정답지를 불러오는 부분입니다.
     year_choice, test_choice, type_choice = init_value()
     exam_info = year_choice + "_" + test_choice + "_" + type_choice  # ex: 2021_f_a
