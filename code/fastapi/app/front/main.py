@@ -4,14 +4,16 @@ import sys
 from stqdm import stqdm
 import io
 from streamlit_image_comparison import image_comparison
+from argparse import ArgumentParser
 
 sys.path.append("/opt/ml/input/code/fastapi/app/front")
 from utils import *
 
-backend_server = "118.67.135.56:30002"
 st.set_page_config(
     page_title="몇 점 일 까 ?", layout="wide", initial_sidebar_state="expanded"
 )
+
+# css 설정
 st.markdown(
     """<style>
 .title{
@@ -97,7 +99,6 @@ def home():
         '<p class="sub_title">AI 채점 선생님이 당신을 대신해 채점해 드립니다</p>',
         unsafe_allow_html=True,
     )
-    # st.markdown('<p class="preview">P r e v i e w</p>', unsafe_allow_html=True)
     st.markdown("<p> </p>", unsafe_allow_html=True)
     empty1, con, empty2 = st.columns([0.3, 0.9, 0.3])
     with empty1:
@@ -114,17 +115,6 @@ def home():
 
 
 def introduce():
-    # st.markdown('<p class="title">몇 점 일 까 ?💯</p>', unsafe_allow_html=True)
-    # st.markdown(
-    #     '<p class="sub_title">AI 채점 선생님이 당신을 대신해 채점해 드립니다</p>',
-    #     unsafe_allow_html=True,
-    # )
-    # _, con1, con2, _ = st.columns([0.1, 0.2, 0.1, 0.1])
-    # _, con1, con2, _ = st.columns([0.15, 0.55, 0.1, 0.1])
-    # Guideline = con1.button("**Guideline**")
-    # warning = con2.button("**주의사항**")
-    # st.markdown("<hr>", unsafe_allow_html=True)
-    # if Guideline:
     st.markdown('<p class="use">G u i d e l i n e</p>', unsafe_allow_html=True)
     user, res = st.columns([0.5, 0.5])
     with user:
@@ -154,22 +144,6 @@ def introduce():
             width=580,
             caption="채점된 결과",
         )
-        # st.markdown("<hr>", unsafe_allow_html=True)
-        # st.markdown('<p class="preview">P r e v i e w</p>', unsafe_allow_html=True)
-        # st.markdown("<p> </p>", unsafe_allow_html=True)
-        # empty1, con, empty2 = st.columns([0.3, 0.8, 0.3])
-        # with empty1:
-        #     st.empty()
-        # with con:
-        #     image_comparison(
-        #         img1="/opt/ml/input/code/fastapi/app/front/explain_img/solve.jpg",
-        #         img2="/opt/ml/input/code/fastapi/app/front/explain_img/check.jpg",
-        #         label1="제출된 시험지",
-        #         label2="Ai채점 결과",
-        #     )
-        # with empty2:
-        #     st.empty()
-    # if warning:
     st.markdown('<p class="use2">객 관 식</p>', unsafe_allow_html=True)
     war_cor_1, war_incor_1 = st.columns([0.5, 0.5])
     with war_cor_1:
@@ -227,40 +201,24 @@ def introduce():
         )
 
 
-def main():
+def main(args):
     st.markdown('<p class="title">몇 점 일 까 ?💯</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sub_title">AI 채점 선생님이 당신을 대신해 채점해 드립니다</p>', unsafe_allow_html=True
     )
     st.markdown("<hr>", unsafe_allow_html=True)
-    # st.markdown('<p class="main_use">평가원 객관식 문제 자동채점 프로그램</p>', unsafe_allow_html=True)
-    # st.title("몇점일까?")
+
     st.subheader("평가원 문제 자동채점 프로그램")
-    # 스트림릿의 선택 창으로 채점할 문제의 종류를 선택하고, 정답지를 불러오는 부분입니다.
+
+    backend_server = args.BackendServer
     year_choice, test_choice, type_choice = init_value()
     exam_info = year_choice + "_" + test_choice + "_" + type_choice  # ex: 2021_f_a
-    a = [1, 2]
-    # response = requests.get(f"http://{backend_server}/answers/{exam_info}")
-    # rs = response.json()["answers"]
-    # if rs == "No data":
-    #     file = st.file_uploader("정답 데이터가 없습니다, 답안을 등록해주세요", type=["csv"])
-    #     if file:
-    #         csv_file = file.read()
-    #         response = requests.post(
-    #             f"http://{backend_server}/uploadfiles_name/{exam_info}",
-    #             files={"csv_file": csv_file},
-    #         )
-    #         st.write("등록이 완료되었습니다.")
     uploaded_file = st.file_uploader("손으로 풀이된 시험지의 pdf파일을 업로드하세요.", type=["pdf"])
     if uploaded_file:
-        # 업로드한 파일을 backend server에 보내서 모델 예측을 받는 부분입니다.
-        # length = 1  # TODO: uploaded_file의 길이로 수정합니다.
         files = {"file": uploaded_file.getvalue()}
-        # progress = stqdm(total=length)
         user_solution = requests.post(
             f"http://{backend_server}/predict/{exam_info}", files=files
         )
-        # progress.update(1)
         st.download_button(
             "Download Scored Image",
             data=io.BytesIO(user_solution.content).read(),
@@ -270,9 +228,12 @@ def main():
 
 
 if __name__ == "__main__":
-    if select == "Home":
-        home()
-    elif select == "Guideline":
+    if select == "Guideline":
         introduce()
     elif select == "채점하기":
-        main()
+        parser = ArgumentParser()
+        parser.add_argument("--BackendServer", type=str, default="34.64.169.3:30002")
+        args = parser.parse_args()
+        main(args)
+    elif select == "Home":
+        home()
