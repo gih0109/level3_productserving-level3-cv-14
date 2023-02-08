@@ -7,3 +7,5 @@
 /train
 /val
 /mnist_ocr
+/config.py
+/test_v2
