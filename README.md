@@ -68,13 +68,13 @@
 - Docker
 - Google Cloud Platform
 
-## <br/> Development
+## <br/> Model Development
 
 ### <br/> 1 Synthetic Dataset 
 
 ![데이터셋](https://github.com/gih0109/algorithm-practice/assets/102566187/4f3ddb33-fd32-47ee-a122-13f13ede10ff)
 
-#### Dataset 구축 시나리오
+### Dataset 구축 시나리오
 
 1. 데이터 탐색
 - 수학 문제가 담긴 이미지 데이터
@@ -85,29 +85,47 @@
 3. 수집하지 않은 데이터
 - 개인이 풀이한 뒤 웹에 공개한 데이터
 
-#### Dataset Annotation for Detection
+### Dataset Annotation for Detection
 
 Detection BBox Annotation 가이드 : [Link](https://docs.google.com/presentation/d/1egpoPjG9h6XrKhjdMvsR7MbLgqGZ6pwSD3su1dMKsMc/edit#slide=id.g1d1aa1a43d9_2_75)
 - 팀원 모두 일관되게 annotation 가능하게 가이드하는것을 목표
 - annotation 규칙이 애매할 경우 판단 기준
 
-#### Synthetic Dataset 개발과정
+### Synthetic Dataset 개발
+- 목표
+  - 실제 사용자가 푼 것처럼 필기가 되어있고 객관식 답 체크 및 주관식 답 작성이 되어있는 합성 이미지 제작
 
+
+- 제작에 사용한 요소
+  - CROHME 필기 이미지
+  <img src="https://github.com/gih0109/algorithm-practice/assets/102566187/efd2f366-3d54-4a46-a32d-92750313a7e3.png"  width="600" height="150"/>
+
+   - 체크 표시 이미지
+  <img src="https://github.com/gih0109/algorithm-practice/assets/102566187/0a1080ae-fea7-4008-be5d-f75c666b9a13.png"  width="400" height="100"/>
+
+  - 주관식 답 이미지 (MNIST이용)
+  <img src="https://github.com/gih0109/algorithm-practice/assets/102566187/3f912238-9e31-4d2d-827f-1f94172c1993.png"  width="200" height="50"/>
+
+- 학습에 사용된 합성 데이터 이미지
+<img src="https://github.com/gih0109/algorithm-practice/assets/102566187/e4491bf6-d1c7-47ff-b132-54787a32505c.png"  width="400" height="400"/>
+
+
+### Synthetic Dataset 개발과정
 
 #### Synthetic Dataset v1
 - 최초 데이터셋
 
 |체크 탐지|a0(체크없음)|a1|a2|a3|a4|a5|
 |------|---|---|---|---|---|---|
-|mAP|0.732|0.735|0.735|0.733|0.718|0.674|
+|mAP|0.431|0.415|0.442|0.587|0.500|0.495|
 
 #### Synthetic Dataset v2
-- 보기 겹침 제거
-- 답 체크 되지 않은 경우 추가
+- 필기 겹침 제거, 보기 겹침 제거
+- 랜덤생성 코드 추가
 
 |체크 탐지|a0(체크없음)|a1|a2|a3|a4|a5|
 |------|---|---|---|---|---|---|
-|mAP|0.431|0.415|0.442|0.587|0.500|0.495|
+|mAP|0.591|0.600|0.538|0.613|0.597|0.519|
 
 #### Synthetic Dataset v3
 - 체크표시와 다른 필기를 가진 데이터를 추가
@@ -133,6 +151,10 @@ Detection BBox Annotation 가이드 : [Link](https://docs.google.com/presentatio
 |체크 탐지|a0(체크없음)|a1|a2|a3|a4|a5|주관식|
 |------|---|---|---|---|---|---|---|
 |mAP|0.828|0.903|0.859|0.861|0.878|0.818|0.940|
+
+###
+
+
 
 ## <br/>🔎 Future Research
 
